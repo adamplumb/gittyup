@@ -271,7 +271,7 @@ class CobraGitClient:
         if ref_name in refs:
             del self.repo.refs[ref_name]
     
-    def tags_list(self):
+    def tag_list(self):
         refs = self.repo.get_refs()
         tags = []
         for ref,tag_sha in refs.items():

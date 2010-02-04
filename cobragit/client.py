@@ -173,6 +173,12 @@ class CobraGitClient:
 
         index.write()
     
+    def unstage_all(self):
+        index = self._get_index()
+        for status in self.status():
+            if status.identifier in [CobraGitAddedStatus, CobraGitRemovedStatus, CobraGitModifiedStatus, CobraGitMissingStatus]:
+                self.unstage(status.path)
+    
     def branch(self, name, commit_sha=None, track=False):
         if commit_sha:
             try:

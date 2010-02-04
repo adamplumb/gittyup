@@ -58,5 +58,11 @@ else:
     st = g.status()
     assert (st[0] == CobraGitModifiedStatus)
     assert (st[1] == CobraGitUntrackedStatus)
-    
+
+    # Unstage all staged files
+    g.unstage_all()
+    st = g.status()
+    assert (st[0] == CobraGitModifiedStatus)
+    assert (st[1] == CobraGitUntrackedStatus)
+        
     print "stage.py pass"

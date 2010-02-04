@@ -164,6 +164,41 @@ class CobraGitClient:
 
         index.write()
     
+    def branch(self, name, commit_sha=None):
+        if commit_sha:
+            try:
+                commit = self.repo.commit(commit_sha)
+            except AssertionError:
+                raise CobraGitNotCommit(commit_sha)
+        else:
+            commit = self.repo.commit(self.repo.head())
+
+        self.repo.refs["refs/heads/%s" % name] = commit.id
+
+    def branch_delete(self, name):
+        ref_name = "refs/heads/%s" % name
+        refs = self.repo.get_refs()
+        if ref_name in refs:
+            del self.repo.refs[ref_name]
+
+    def branch_rename(self, old_name, new_name):
+        old_ref_name = "refs/heads/%s" % old_name
+        new_ref_name = "refs/heads/%s" % new_name
+        refs = self.repo.get_refs()
+        if old_ref_name in refs:
+            self.repo.refs[new_ref_name] = self.repo.refs[old_ref_name]
+            del self.repo.refs[old_ref_name]
+
+    def branch_list(self):
+        refs = self.repo.get_refs()
+        branches = []
+        for ref,branch_sha in refs.items():
+            if ref.startswith("refs/heads"):
+                branch = CobraGitBranch(ref[11:], branch_sha, self.repo[branch_sha])
+                branches.append(branch)
+        
+        return branches
+    
     def checkout(self, paths=[], tree_sha=None, commit_sha=None):
         tree = None
         if tree_sha:

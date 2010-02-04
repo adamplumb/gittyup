@@ -112,3 +112,19 @@ class CobraGitTag(CobraGitObject):
 class CobraGitTree(CobraGitObject):
     def __repr__(self):
         return "<CobraGitTree %s>" % self.sha
+
+class CobraGitBranch(CobraGitCommit):
+    def __init__(self, name, sha, obj):
+        self.name = name
+        self.sha = sha
+        self.obj = obj
+
+    def __repr__(self):
+        return "<CobraGitBranch %s %s>" % (self.name, self.sha)
+
+    @property
+    def name(self):
+        return self.obj.name
+    
+    def __eq__(self, other):
+        return (self.name == other)

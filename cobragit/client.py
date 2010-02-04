@@ -247,14 +247,14 @@ class CobraGitClient:
         return tags
     
     def status(self):
-        tree_at_head = self._get_tree_at_head()
+        tree = self._get_tree_at_head()
         index = self._get_index()
         paths = self._read_directory_tree(self.repo.path)
         
         statuses = []
         tracked_paths = set(index)
-        if len(tree_at_head) > 0:
-            for (name, mode, sha) in self.repo.object_store.iter_tree_contents(tree_at_head.id):
+        if len(tree) > 0:
+            for (name, mode, sha) in self.repo.object_store.iter_tree_contents(tree.id):
                 if os.path.exists(name):
                     if name in tracked_paths:
                         # Cached, determine if modified or not

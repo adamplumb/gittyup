@@ -153,7 +153,7 @@ class CobraGitClient:
 
             self.repo.object_store.add_object(blob)
     
-    def stage_all_changed(self):
+    def stage_all(self):
         index = self._get_index()
         for status in self.status():
             if status in [CobraGitAddedStatus, CobraGitRemovedStatus, CobraGitModifiedStatus]:

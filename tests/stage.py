@@ -45,7 +45,7 @@ else:
     assert (st[1] == CobraGitUntrackedStatus)
     
     # Untracked files should not be staged
-    g.stage_all_changed()
+    g.stage_all()
     st = g.status()
     assert (st[0] == CobraGitUntrackedStatus)
     assert (st[1] == CobraGitUntrackedStatus)

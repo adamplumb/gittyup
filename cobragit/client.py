@@ -87,7 +87,10 @@ class CobraGitClient:
         return None
 
     def _get_relative_path(self, path):
-        return relativepath(os.path.realpath(self.repo.path), path)            
+        return relativepath(os.path.realpath(self.repo.path), path)      
+    
+    def _get_absolute_path(self, path):
+        return os.path.join(self.repo.path, path)      
 
     def _get_blob_from_file(self, path):
         file = open(path, "rb")
@@ -131,8 +134,12 @@ class CobraGitClient:
         tree = self._get_tree_at_head()
         index = self._get_index()
         
+        if isinstance(paths, str):
+            paths = [paths]
+
         for path in paths:
             relative_path = self._get_relative_path(path)
+            absolute_path = self._get_absolute_path(path)
             blob = self._get_blob_from_file(path)
             
             if relative_path in index:
@@ -149,15 +156,18 @@ class CobraGitClient:
     def stage_all_changed(self):
         index = self._get_index()
         for status in self.status():
-            if status.identifier in [CobraGitAddedStatus, CobraGitRemovedStatus, CobraGitModifiedStatus]:
-                self.stage(status.path)
+            if status in [CobraGitAddedStatus, CobraGitRemovedStatus, CobraGitModifiedStatus]:
+                self.stage(self._get_absolute_path(status.path))
 
-            if status.identifier == CobraGitMissingStatus:
+            if status == CobraGitMissingStatus:
                 del index[status.path]
                 index.write()           
 
     def unstage(self, paths):
         index = self._get_index()
+
+        if isinstance(paths, str):
+            paths = [paths]
         
         for path in paths:
             relative_path = self._get_relative_path(path)
@@ -176,8 +186,24 @@ class CobraGitClient:
     def unstage_all(self):
         index = self._get_index()
         for status in self.status():
-            if status.identifier in [CobraGitAddedStatus, CobraGitRemovedStatus, CobraGitModifiedStatus, CobraGitMissingStatus]:
-                self.unstage(status.path)
+            self.unstage(self._get_absolute_path(status.path))
+    
+    def get_staged(self):
+        staged = []
+        tree = self._get_tree_at_head()
+        index = self._get_index()
+        if len(tree) > 0:
+            for item in index.changes_from_tree(self.repo.object_store, tree.id):
+                ((old_name, new_name), (old_mode, new_mode), (old_sha, new_sha)) = item
+
+                staged.append(new_name)
+                if old_name and old_name != new_name:
+                    staged.append(old_name)
+        
+        return staged
+
+    def is_staged(self, path):
+        return (path in self.get_staged())
     
     def branch(self, name, commit_sha=None, track=False):
         if commit_sha:
@@ -314,7 +340,7 @@ class CobraGitClient:
         tracked_paths = set(index)
         if len(tree) > 0:
             for (name, mode, sha) in self.repo.object_store.iter_tree_contents(tree.id):
-                absolute_path = os.path.join(self.repo.path, name)
+                absolute_path = self._get_absolute_path(name)
                 if os.path.exists(absolute_path):
                     if name in tracked_paths:
                         # Cached, determine if modified or not

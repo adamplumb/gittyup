@@ -50,19 +50,19 @@ else:
     assert (st[0] == CobraGitUntrackedStatus)
     assert (st[1] == CobraGitUntrackedStatus)
     
-    # test1.txt is changed now, so it should get staged and set as Modified
+    # test1.txt is changed, so it should get staged and set as Modified
     g.stage([DIR+"/test1.txt"])
     g.commit("Test commit")
     change(DIR+"/test1.txt")
     g.stage_all_changed()
     st = g.status()
-    assert (st[0] == CobraGitModifiedStatus)
-    assert (st[1] == CobraGitUntrackedStatus)
+    assert (g.is_staged(st[0].path))
+    assert (not g.is_staged(st[1].path))
 
     # Unstage all staged files
     g.unstage_all()
     st = g.status()
-    assert (st[0] == CobraGitModifiedStatus)
-    assert (st[1] == CobraGitUntrackedStatus)
-        
+    assert (not g.is_staged(st[0].path))
+    assert (not g.is_staged(st[1].path))
+    
     print "stage.py pass"

@@ -10,6 +10,9 @@ class CobraGitStatus:
     def __repr__(self):
         return "<CobraGitStatus %s %s>" % (self.path, self.identifier)
 
+    def __eq__(self, other):
+        return (self.identifier == other.identifier)
+
 class CobraGitNormalStatus(CobraGitStatus):
     identifier = "normal"
 

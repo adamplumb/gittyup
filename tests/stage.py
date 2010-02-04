@@ -8,6 +8,7 @@ from sys import argv
 from optparse import OptionParser
 
 from cobragit.client import CobraGitClient
+from cobragit.objects import *
 from util import touch
 
 parser = OptionParser()
@@ -35,7 +36,14 @@ else:
     
     st = g.status()
     
-    if st[0].identifier == "added" and st[1].identifier == "added":
-        print "stage.py pass"
-    else:
-        print "stage.py fail"
+    assert (st[0] == CobraGitAddedStatus)
+    assert (st[1] == CobraGitAddedStatus)
+    
+    g.unstage([DIR+"/test1.txt", DIR+"/test2.txt"])
+    
+    st = g.status()
+    
+    assert (st[0] == CobraGitUntrackedStatus)
+    assert (st[1] == CobraGitUntrackedStatus)
+    
+    print "stage.py pass"

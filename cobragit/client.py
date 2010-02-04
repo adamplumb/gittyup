@@ -345,3 +345,10 @@ class CobraGitClient:
             statuses.append(CobraGitUntrackedStatus(path))
 
         return statuses
+    
+    def log(self):
+        try:
+            return self.repo.revision_history(self.repo.head())
+        except NotCommitError:
+            raise CobraGitNotCommit()
+            return None

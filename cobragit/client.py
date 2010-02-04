@@ -119,8 +119,6 @@ class CobraGitClient:
             raise CobraGitNotRepository()
     
     def stage(self, path):
-        print "git.stage %s" % path
-
         tree = self._get_tree_at_head()
         relative_path = self._get_relative_path(path)
         blob = self._get_blob_from_file(relative_path)
@@ -133,8 +131,6 @@ class CobraGitClient:
         self.repo.object_store.add_object(blob)
     
     def stage_all_changed(self):
-        print "git.stage_all"
-
         index = self._get_index()
         for status in self.status():
             if status.identifier in ["added", "removed", "modified"]:
@@ -145,8 +141,6 @@ class CobraGitClient:
                 index.write()           
 
     def unstage(self, path):
-        print "git.unstage %s" % path
-
         index = self._get_index()
         relative_path = self._get_relative_path(path)
 
@@ -162,8 +156,6 @@ class CobraGitClient:
             index.write()
     
     def checkout(self, paths=[], tree_sha=None, commit_sha=None):
-        print "git.checkout"
-
         tree = None
         if tree_sha:
             try:
@@ -189,8 +181,6 @@ class CobraGitClient:
                 self._write_blob_to_file(name, self.repo.get_blob(sha))
     
     def commit(self, message, commit_all=False):
-        print "git.commit"
-
         if commit_all:
             self.stage_all_changed()
 
@@ -218,8 +208,6 @@ class CobraGitClient:
             self.repo.refs["HEAD"] = "ref: refs/heads/master"
     
     def tag(self, name, message):
-        print "git.tag",name
-
         tag = Tag()
         
         tag.name = name
@@ -234,16 +222,12 @@ class CobraGitClient:
         self.repo.refs["refs/tags/%s" % name] = tag.id
     
     def tag_delete(self, name):
-        print "git.tag_delete %s" % name
-
         ref_name = "refs/tags/%s" % name
         refs = self.repo.get_refs()
         if ref_name in refs:
             del self.repo.refs[ref_name]
     
     def tags_list(self):
-        print "git.tags_list"
-        
         refs = self.repo.get_refs()
         tags = []
         for ref,tag_sha in refs.items():
@@ -254,8 +238,6 @@ class CobraGitClient:
         return tags
     
     def status(self):
-        print "git.status"
-        
         tree_at_head = self._get_tree_at_head()
         index = self._get_index()
         paths = self._read_directory_tree(self.repo.path)

@@ -149,10 +149,10 @@ class CobraGitClient:
     def stage_all_changed(self):
         index = self._get_index()
         for status in self.status():
-            if status.identifier in ["added", "removed", "modified"]:
+            if status.identifier in [CobraGitAddedStatus, CobraGitRemovedStatus, CobraGitModifiedStatus]:
                 self.stage(status.path)
 
-            if status.identifier == "missing":
+            if status.identifier == CobraGitMissingStatus:
                 del index[status.path]
                 index.write()           
 
@@ -308,12 +308,13 @@ class CobraGitClient:
         tracked_paths = set(index)
         if len(tree) > 0:
             for (name, mode, sha) in self.repo.object_store.iter_tree_contents(tree.id):
-                if os.path.exists(name):
+                absolute_path = os.path.join(self.repo.path, name)
+                if os.path.exists(absolute_path):
                     if name in tracked_paths:
                         # Cached, determine if modified or not
                         tracked_paths.remove(name)
                         
-                        blob = self._get_blob_from_file(name)
+                        blob = self._get_blob_from_file(absolute_path)
                         if blob.id == index[name][8]:
                             statuses.append(CobraGitNormalStatus(name))
                         else:

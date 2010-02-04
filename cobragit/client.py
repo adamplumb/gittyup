@@ -117,6 +117,15 @@ class CobraGitClient:
             self.repo = Repo(os.path.realpath(path))
         except NotGitRepository:
             raise CobraGitNotRepository()
+
+    def track(self, name):
+        self.repo.refs["HEAD"] = "ref: %s" % name
+
+    def is_tracking(self, name):
+        return (self.repo.refs["HEAD"] == "ref: %s" % name)
+
+    def tracking(self, name):
+        return self.repo.refs["HEAD"][5:]
     
     def stage(self, paths):
         tree = self._get_tree_at_head()
@@ -164,7 +173,7 @@ class CobraGitClient:
 
         index.write()
     
-    def branch(self, name, commit_sha=None):
+    def branch(self, name, commit_sha=None, track=False):
         if commit_sha:
             try:
                 commit = self.repo.commit(commit_sha)
@@ -174,11 +183,17 @@ class CobraGitClient:
             commit = self.repo.commit(self.repo.head())
 
         self.repo.refs["refs/heads/%s" % name] = commit.id
+        
+        if track:
+            self.track("refs/heads/%s" % name)
 
     def branch_delete(self, name):
         ref_name = "refs/heads/%s" % name
         refs = self.repo.get_refs()
         if ref_name in refs:
+            if self.is_tracking(ref_name):
+                self.track("refs/heads/master")
+        
             del self.repo.refs[ref_name]
 
     def branch_rename(self, old_name, new_name):
@@ -187,6 +202,9 @@ class CobraGitClient:
         refs = self.repo.get_refs()
         if old_ref_name in refs:
             self.repo.refs[new_ref_name] = self.repo.refs[old_ref_name]
+            if self.is_tracking(old_ref_name):
+                self.track(new_ref_name)
+            
             del self.repo.refs[old_ref_name]
 
     def branch_list(self):
@@ -198,7 +216,7 @@ class CobraGitClient:
                 branches.append(branch)
         
         return branches
-    
+
     def checkout(self, paths=[], tree_sha=None, commit_sha=None):
         tree = None
         if tree_sha:
@@ -249,7 +267,7 @@ class CobraGitClient:
         self.repo.refs["refs/heads/master"] = commit.id
         
         if initial_commit:
-            self.repo.refs["HEAD"] = "ref: refs/heads/master"
+            self.track("refs/heads/master")
     
     def tag(self, name, message):
         tag = Tag()

@@ -33,19 +33,30 @@ else:
     
     g.stage([DIR+"/test1.txt", DIR+"/test2.txt"])
     g.commit("This is a commit")
-    
-    assert ("master" in g.branch_list())
-    
+
+    # Create a new branch, don't track it
     g.branch("branch1")
-
     assert ("branch1" in g.branch_list())
-    
-    g.branch_rename("branch1", "branch1b")
 
+    # Make sure we are still tracking master
+    assert (g.is_tracking("refs/heads/master"))
+
+    # Track branch1
+    g.track("refs/heads/branch1")
+    assert (g.is_tracking("refs/heads/branch1"))
+    
+    # Rename branch1 to branch1b
+    g.branch_rename("branch1", "branch1b")
     assert ("branch1b" in g.branch_list())
+
+    # Make sure we are now tracking branch1b
+    assert (g.is_tracking("refs/heads/branch1b"))
     
-    g.branch_delete("branch1")
-    
-    assert ("branch1" not in g.branch_list())
+    # Delete branch1b
+    g.branch_delete("branch1b")
+    assert ("branch1b" not in g.branch_list())
+
+    # Make sure we are now tracking master
+    assert (g.is_tracking("refs/heads/master"))
 
     print "branch.py pass"

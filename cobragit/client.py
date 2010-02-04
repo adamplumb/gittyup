@@ -118,17 +118,24 @@ class CobraGitClient:
         except NotGitRepository:
             raise CobraGitNotRepository()
     
-    def stage(self, path):
+    def stage(self, paths):
         tree = self._get_tree_at_head()
-        relative_path = self._get_relative_path(path)
-        blob = self._get_blob_from_file(relative_path)
-        
-        (mode, ino, dev, nlink, uid, gid, size, atime, mtime, ctime) = os.stat(relative_path)
         index = self._get_index()
-        index[relative_path] = (ctime, mtime, dev, ino, mode, uid, gid, size, blob.id, 0)
-        index.write()
+        
+        for path in paths:
+            relative_path = self._get_relative_path(path)
+            blob = self._get_blob_from_file(path)
+            
+            if relative_path in index:
+                (ctime, mtime, dev, ino, mode, uid, gid, size, blob_id, flags) = index[relative_path]
+            else:
+                (mode, ino, dev, nlink, uid, gid, size, atime, mtime, ctime) = os.stat(path)
+                flags = 0
 
-        self.repo.object_store.add_object(blob)
+            index[relative_path] = (ctime, mtime, dev, ino, mode, uid, gid, size, blob.id, flags)
+            index.write()
+
+            self.repo.object_store.add_object(blob)
     
     def stage_all_changed(self):
         index = self._get_index()
@@ -140,20 +147,22 @@ class CobraGitClient:
                 del index[status.path]
                 index.write()           
 
-    def unstage(self, path):
+    def unstage(self, paths):
         index = self._get_index()
-        relative_path = self._get_relative_path(path)
+        
+        for path in paths:
+            relative_path = self._get_relative_path(path)
 
-        if relative_path in index:
-            tree = self._get_tree_at_head()
-            if relative_path in tree:
-                (ctime, mtime, dev, ino, mode, uid, gid, size, blob_id, flags) = index[relative_path]
-                (mode, blob_id) = tree[relative_path]
-                index[relative_path] = (ctime, mtime, dev, ino, mode, uid, gid, size, blob_id, flags)
-            else:
-                del index[relative_path]
+            if relative_path in index:
+                tree = self._get_tree_at_head()
+                if relative_path in tree:
+                    (ctime, mtime, dev, ino, mode, uid, gid, size, blob_id, flags) = index[relative_path]
+                    (mode, blob_id) = tree[relative_path]
+                    index[relative_path] = (ctime, mtime, dev, ino, mode, uid, gid, size, blob_id, flags)
+                else:
+                    del index[relative_path]
 
-            index.write()
+        index.write()
     
     def checkout(self, paths=[], tree_sha=None, commit_sha=None):
         tree = None
@@ -243,31 +252,31 @@ class CobraGitClient:
         paths = self._read_directory_tree(self.repo.path)
         
         statuses = []
-
         tracked_paths = set(index)
-        for (name, mode, sha) in self.repo.object_store.iter_tree_contents(tree_at_head.id):
-            if os.path.exists(name):
-                if name in tracked_paths:
-                    # Cached, determine if modified or not
-                    tracked_paths.remove(name)
-                    
-                    blob = self._get_blob_from_file(name)
-                    if blob.id == index[name][8]:
-                        statuses.append(CobraGitNormalStatus(name))
+        if len(tree_at_head) > 0:
+            for (name, mode, sha) in self.repo.object_store.iter_tree_contents(tree_at_head.id):
+                if os.path.exists(name):
+                    if name in tracked_paths:
+                        # Cached, determine if modified or not
+                        tracked_paths.remove(name)
+                        
+                        blob = self._get_blob_from_file(name)
+                        if blob.id == index[name][8]:
+                            statuses.append(CobraGitNormalStatus(name))
+                        else:
+                            statuses.append(CobraGitModifiedStatus(name))
                     else:
-                        statuses.append(CobraGitModifiedStatus(name))
+                        # Removed
+                        statuses.append(CobraGitRemovedStatus(name))
                 else:
-                    # Removed
-                    statuses.append(CobraGitRemovedStatus(name))
-            else:
-                # Missing
-                tracked_paths.remove(name)
-                statuses.append(CobraGitMissingStatus(name))
+                    # Missing
+                    tracked_paths.remove(name)
+                    statuses.append(CobraGitMissingStatus(name))
 
-            try:
-                paths.remove(name)
-            except ValueError:
-                pass
+                try:
+                    paths.remove(name)
+                except ValueError:
+                    pass
 
         for name in tracked_paths:
             # Added

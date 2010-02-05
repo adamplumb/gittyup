@@ -207,13 +207,11 @@ class GittyupLocalFallbackConfig(GittyupFallbackConfig):
 
     def _config(self, section, key=None):
         if self._system.has(section, key):
-            config = self._system
+            return self._system
         elif self._global.has(section, key):
-            config = self._global
+            return self._global
         else:
-            config = self._local
-                
-        return config
+            return self._local
 
     def write(self):
         self._local.write()

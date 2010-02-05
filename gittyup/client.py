@@ -229,6 +229,8 @@ class GittyupClient:
         
         if track:
             self.track("refs/heads/%s" % name)
+        
+        return commit.id
 
     def branch_delete(self, name):
         ref_name = "refs/heads/%s" % name
@@ -327,6 +329,8 @@ class GittyupClient:
         
         if initial_commit:
             self.track("refs/heads/master")
+
+        return commit.id
     
     def tag(self, name, message):
         tag = dulwich.objects.Tag()
@@ -341,6 +345,8 @@ class GittyupClient:
         self.repo.object_store.add_object(tag)
         
         self.repo.refs["refs/tags/%s" % name] = tag.id
+        
+        return tag.id
     
     def tag_delete(self, name):
         ref_name = "refs/tags/%s" % name

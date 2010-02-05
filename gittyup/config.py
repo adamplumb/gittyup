@@ -206,10 +206,10 @@ class GittyupLocalFallbackConfig(GittyupFallbackConfig):
         self._system = GittyupSystemConfig()
 
     def _config(self, section, key=None):
-        if self._global.has(section, key):
-            config = self._global
-        elif self._system.has(section, key):
+        if self._system.has(section, key):
             config = self._system
+        elif self._global.has(section, key):
+            config = self._global
         else:
             config = self._local
                 

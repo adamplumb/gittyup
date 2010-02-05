@@ -235,12 +235,10 @@ class GittyupGlobalFallbackConfig(GittyupFallbackConfig):
         self._system = GittyupSystemConfig()
 
     def _config(self, section, key=None):
-        if self._global.has(section, key):
-            config = self._global
-        elif self._system.has(section, key):
-            config = self._system
-                
-        return config
+        if self._system.has(section, key):
+            return self._system
+        else:
+            return self._global
 
     def write(self):
         self._global.write()

@@ -36,7 +36,9 @@ class GittyupClient:
         else:
             self.repo = None
 
-    ### Start Private Methods ###
+    #
+    # Start Private Methods
+    #
 
     def _initialize_index(self):
         index_path = self.repo.index_path()
@@ -109,8 +111,10 @@ class GittyupClient:
         finally:
             file.close()
 
-    ### Start Public Methods ###
-
+    #
+    # Start Public Methods
+    #
+    
     def initialize_repository(self, path):
         if not os.path.exists(path):
             os.mkdir(path)

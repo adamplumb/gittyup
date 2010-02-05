@@ -3,6 +3,8 @@
 #
 
 import os
+import warnings
+
 from _configobj.configobj import ConfigObj
 
 def get_local_config_path(repository_path):
@@ -134,6 +136,12 @@ class GittyupSystemConfig(GittyupConfig):
         """
         GittyupConfig.__init__(self, get_system_config_path())
 
+    def write(self):
+        try:
+            self._config.write()
+        except IOError, e:
+            warnings.warn("Can't write to system git config file, %s" % str(e), UserWarning)
+
 class GittyupFallbackConfig:
     """
     An abstract class to provide transparent support for accessing local, global,
@@ -204,9 +212,11 @@ class GittyupLocalFallbackConfig(GittyupFallbackConfig):
         self._local = GittyupLocalConfig(repository_path)
         self._global = GittyupGlobalConfig()
         self._system = GittyupSystemConfig()
+        self._must_write_to_system = False
 
     def _config(self, section, key=None):
         if self._system.has(section, key):
+            self._must_write_to_system = True
             return self._system
         elif self._global.has(section, key):
             return self._global
@@ -217,8 +227,9 @@ class GittyupLocalFallbackConfig(GittyupFallbackConfig):
         self._local.write()
         self._global.write()
         
-        # Only root can write to the system config file
-        if os.getcwd() == 0:
+        if self._must_write_to_system:
+            # Only root can write to the system config file, so only do it
+            # if we must
             self._system.write()
 
 class GittyupGlobalFallbackConfig(GittyupFallbackConfig):
@@ -231,9 +242,11 @@ class GittyupGlobalFallbackConfig(GittyupFallbackConfig):
         """
         self._global = GittyupGlobalConfig()
         self._system = GittyupSystemConfig()
+        self._must_write_to_system = False
 
     def _config(self, section, key=None):
         if self._system.has(section, key):
+            self._must_write_to_system = True
             return self._system
         else:
             return self._global
@@ -241,6 +254,7 @@ class GittyupGlobalFallbackConfig(GittyupFallbackConfig):
     def write(self):
         self._global.write()
 
-        # Only root can write to the system config file
-        if os.getcwd() == 0:
+        if self._must_write_to_system:
+            # Only root can write to the system config file, so only do it
+            # if we must
             self._system.write()

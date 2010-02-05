@@ -10,7 +10,7 @@ from optparse import OptionParser
 from gittyup.client import GittyupClient
 from gittyup.objects import *
 from util import touch, change
-from gittyup.config import GittyupLocalFallbackConfig, GittyupConfig
+from gittyup.config import GittyupLocalFallbackConfig, GittyupConfig, GittyupSystemConfig
 
 parser = OptionParser()
 parser.add_option("-c", "--cleanup", action="store_true", default=False)
@@ -56,5 +56,11 @@ else:
     c = GittyupConfig("./data/config/config.example")
     
     assert (c.has("diff", "renames"))
+    
+    del c
+    
+    c = GittyupSystemConfig()
+    c.set("section", "key", "value")
+    c.write()
 
     print "config.py pass"

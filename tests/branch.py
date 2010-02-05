@@ -7,7 +7,7 @@ from shutil import rmtree
 from sys import argv
 from optparse import OptionParser
 
-from cobragit.client import CobraGitClient
+from cobragit.client import GittyupClient
 from util import touch
 
 parser = OptionParser()
@@ -25,7 +25,7 @@ else:
         raise SystemExit("This test script has already been run.  Please call this script with --cleanup to start again")
 
     os.mkdir(DIR)
-    g = CobraGitClient()
+    g = GittyupClient()
     g.initialize_repository(DIR)
     
     touch(DIR + "/test1.txt")

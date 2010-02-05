@@ -12,9 +12,9 @@ from dulwich.objects import Blob, Tree, Commit, Tag, parse_timezone
 from dulwich.index import commit_index, SHA1Writer, write_index_dict
 from dulwich.errors import NotGitRepository
 
-from cobragit.exceptions import *
-from cobragit.util import relativepath, splitall
-from cobragit.objects import *
+from gittyup.exceptions import *
+from gittyup.util import relativepath, splitall
+from gittyup.objects import *
 
 AUTHOR = "Adam Plumb <adamplumb@gmail.com>"
 TZ = parse_timezone("-500")
@@ -25,13 +25,16 @@ DULWICH_TREE_TYPE = 2
 DULWICH_BLOB_TYPE = 3
 DULWICH_TAG_TYPE = 4
 
-class CobraGitClient:
-    def __init__(self, path=None):        
+class GittyupClient:
+    def __init__(self, path=None, create=False):        
         if path:
             try:
                 self.repo = Repo(os.path.realpath(path))
             except NotGitRepository:
-                raise CobraGitNotRepository()
+                if create:
+                    self.repo = self.initialize_repository(path)
+                else:
+                    raise GittyupNotRepository()
         else:
             self.repo = None
 
@@ -119,7 +122,7 @@ class CobraGitClient:
         try:
             self.repo = Repo(os.path.realpath(path))
         except NotGitRepository:
-            raise CobraGitNotRepository()
+            raise GittyupNotRepository()
 
     def track(self, name):
         self.repo.refs["HEAD"] = "ref: %s" % name
@@ -156,10 +159,10 @@ class CobraGitClient:
     def stage_all(self):
         index = self._get_index()
         for status in self.status():
-            if status in [CobraGitAddedStatus, CobraGitRemovedStatus, CobraGitModifiedStatus]:
+            if status in [GittyupAddedStatus, GittyupRemovedStatus, GittyupModifiedStatus]:
                 self.stage(self._get_absolute_path(status.path))
 
-            if status == CobraGitMissingStatus:
+            if status == GittyupMissingStatus:
                 del index[status.path]
                 index.write()           
 
@@ -210,7 +213,7 @@ class CobraGitClient:
             try:
                 commit = self.repo.commit(commit_sha)
             except AssertionError:
-                raise CobraGitNotCommit(commit_sha)
+                raise GittyupNotCommit(commit_sha)
         else:
             commit = self.repo.commit(self.repo.head())
 
@@ -244,7 +247,7 @@ class CobraGitClient:
         branches = []
         for ref,branch_sha in refs.items():
             if ref.startswith("refs/heads"):
-                branch = CobraGitBranch(ref[11:], branch_sha, self.repo[branch_sha])
+                branch = GittyupBranch(ref[11:], branch_sha, self.repo[branch_sha])
                 branches.append(branch)
         
         return branches
@@ -255,13 +258,13 @@ class CobraGitClient:
             try:
                 tree = self.repo.tree(tree_sha)
             except AssertionError:
-                raise CobraGitNotTree(tree_sha)
+                raise GittyupNotTree(tree_sha)
         elif commit_sha:
             try:
                 commit = self.repo.commit(commit_sha)
                 tree = commit.tree
             except AssertionError:
-                raise CobraGitNotCommit(commit_sha)
+                raise GittyupNotCommit(commit_sha)
 
         if not tree:
             tree = self._get_tree_at_head()
@@ -326,7 +329,7 @@ class CobraGitClient:
         tags = []
         for ref,tag_sha in refs.items():
             if ref.startswith("refs/tags"):
-                tag = CobraGitTag(tag_sha, self.repo[tag_sha])
+                tag = GittyupTag(tag_sha, self.repo[tag_sha])
                 tags.append(tag)
         
         return tags
@@ -348,16 +351,16 @@ class CobraGitClient:
                         
                         blob = self._get_blob_from_file(absolute_path)
                         if blob.id == index[name][8]:
-                            statuses.append(CobraGitNormalStatus(name))
+                            statuses.append(GittyupNormalStatus(name))
                         else:
-                            statuses.append(CobraGitModifiedStatus(name))
+                            statuses.append(GittyupModifiedStatus(name))
                     else:
                         # Removed
-                        statuses.append(CobraGitRemovedStatus(name))
+                        statuses.append(GittyupRemovedStatus(name))
                 else:
                     # Missing
                     tracked_paths.remove(name)
-                    statuses.append(CobraGitMissingStatus(name))
+                    statuses.append(GittyupMissingStatus(name))
 
                 try:
                     paths.remove(name)
@@ -366,7 +369,7 @@ class CobraGitClient:
 
         for name in tracked_paths:
             # Added
-            statuses.append(CobraGitAddedStatus(name))
+            statuses.append(GittyupAddedStatus(name))
             try:
                 paths.remove(name)
             except ValueError:
@@ -374,7 +377,7 @@ class CobraGitClient:
 
         # Find untrackedfiles
         for path in paths:
-            statuses.append(CobraGitUntrackedStatus(path))
+            statuses.append(GittyupUntrackedStatus(path))
 
         return statuses
     
@@ -382,5 +385,5 @@ class CobraGitClient:
         try:
             return self.repo.revision_history(self.repo.head())
         except NotCommitError:
-            raise CobraGitNotCommit()
+            raise GittyupNotCommit()
             return None

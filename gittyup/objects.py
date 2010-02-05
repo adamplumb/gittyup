@@ -2,51 +2,51 @@
 # objects.py
 #
 
-class CobraGitStatus:
+class GittyupStatus:
     path = None
     def __init__(self, path):
         self.path = path
 
     def __repr__(self):
-        return "<CobraGitStatus %s %s>" % (self.path, self.identifier)
+        return "<GittyupStatus %s %s>" % (self.path, self.identifier)
 
     def __eq__(self, other):
         return (self.identifier == other.identifier)
 
-class CobraGitNormalStatus(CobraGitStatus):
+class GittyupNormalStatus(GittyupStatus):
     identifier = "normal"
 
-class CobraGitAddedStatus(CobraGitStatus):
+class GittyupAddedStatus(GittyupStatus):
     identifier = "added"
 
-class CobraGitRenamedStatus(CobraGitStatus):
+class GittyupRenamedStatus(GittyupStatus):
     identifier = "renamed"
 
-class CobraGitRemovedStatus(CobraGitStatus):
+class GittyupRemovedStatus(GittyupStatus):
     identifier = "removed"
 
-class CobraGitModifiedStatus(CobraGitStatus):
+class GittyupModifiedStatus(GittyupStatus):
     identifier = "modified"
 
-class CobraGitKilledStatus(CobraGitStatus):
+class GittyupKilledStatus(GittyupStatus):
     identifier = "killed"    
 
-class CobraGitUntrackedStatus(CobraGitStatus):
+class GittyupUntrackedStatus(GittyupStatus):
     identifier = "untracked"
 
-class CobraGitMissingStatus(CobraGitStatus):
+class GittyupMissingStatus(GittyupStatus):
     identifier = "missing"
 
 
 
-class CobraGitObject:
+class GittyupObject:
     def __init__(self, sha, obj):
         self.sha = sha
         self.obj = obj
 
-class CobraGitCommit(CobraGitObject):
+class GittyupCommit(GittyupObject):
     def __repr__(self):
-        return "<CobraGitCommit %s>" % self.sha
+        return "<GittyupCommit %s>" % self.sha
 
     @property
     def parents(self):
@@ -84,9 +84,9 @@ class CobraGitCommit(CobraGitObject):
     def encoding(self):
         return self.obj.encoding
 
-class CobraGitTag(CobraGitObject):
+class GittyupTag(GittyupObject):
     def __repr__(self):
-        return "<CobraGitTag %s>" % self.name
+        return "<GittyupTag %s>" % self.name
 
     @property
     def name(self):
@@ -112,18 +112,18 @@ class CobraGitTag(CobraGitObject):
     def tag_timezone(self):
         return self.obj.tag_timezone
 
-class CobraGitTree(CobraGitObject):
+class GittyupTree(GittyupObject):
     def __repr__(self):
-        return "<CobraGitTree %s>" % self.sha
+        return "<GittyupTree %s>" % self.sha
 
-class CobraGitBranch(CobraGitCommit):
+class GittyupBranch(GittyupCommit):
     def __init__(self, name, sha, obj):
         self.name = name
         self.sha = sha
         self.obj = obj
 
     def __repr__(self):
-        return "<CobraGitBranch %s %s>" % (self.name, self.sha)
+        return "<GittyupBranch %s %s>" % (self.name, self.sha)
 
     @property
     def name(self):

@@ -7,7 +7,7 @@ from shutil import rmtree
 from sys import argv
 from optparse import OptionParser
 
-from cobragit.client import CobraGitClient
+from cobragit.client import GittyupClient
 from cobragit.objects import *
 from util import touch, change
 
@@ -26,7 +26,7 @@ else:
         raise SystemExit("This test script has already been run.  Please call this script with --cleanup to start again")
 
     os.mkdir(DIR)
-    g = CobraGitClient()
+    g = GittyupClient()
     g.initialize_repository(DIR)
     
     touch(DIR + "/test1.txt")
@@ -35,20 +35,20 @@ else:
     # Stage both files
     g.stage([DIR+"/test1.txt", DIR+"/test2.txt"])
     st = g.status()
-    assert (st[0] == CobraGitAddedStatus)
-    assert (st[1] == CobraGitAddedStatus)
+    assert (st[0] == GittyupAddedStatus)
+    assert (st[1] == GittyupAddedStatus)
     
     # Unstage both files
     g.unstage([DIR+"/test1.txt", DIR+"/test2.txt"])
     st = g.status()
-    assert (st[0] == CobraGitUntrackedStatus)
-    assert (st[1] == CobraGitUntrackedStatus)
+    assert (st[0] == GittyupUntrackedStatus)
+    assert (st[1] == GittyupUntrackedStatus)
     
     # Untracked files should not be staged
     g.stage_all()
     st = g.status()
-    assert (st[0] == CobraGitUntrackedStatus)
-    assert (st[1] == CobraGitUntrackedStatus)
+    assert (st[0] == GittyupUntrackedStatus)
+    assert (st[1] == GittyupUntrackedStatus)
     
     # test1.txt is changed, so it should get staged and set as Modified
     g.stage([DIR+"/test1.txt"])

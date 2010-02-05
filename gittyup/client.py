@@ -3,7 +3,7 @@
 #
 
 import os
-from time import time
+from time import time, timezone
 
 import dulwich.errors
 import dulwich.repo
@@ -13,10 +13,9 @@ from dulwich.index import commit_index, write_index_dict, SHA1Writer
 from gittyup.exceptions import *
 from gittyup.util import relativepath, splitall
 from gittyup.objects import *
-from gittyup.config import GittyupConfig
+from gittyup.config import GittyupLocalFallbackConfig
 
-AUTHOR = "Adam Plumb <adamplumb@gmail.com>"
-TZ = dulwich.objects.parse_timezone("-500")
+TZ = -1 * timezone
 ENCODING = "UTF-8"
 
 DULWICH_COMMIT_TYPE = 1
@@ -29,6 +28,7 @@ class GittyupClient:
         if path:
             try:
                 self.repo = dulwich.repo.Repo(os.path.realpath(path))
+                self._load_config()
             except dulwich.errors.NotGitRepository:
                 if create:
                     self.repo = self.initialize_repository(path)
@@ -112,6 +112,9 @@ class GittyupClient:
         finally:
             file.close()
 
+    def _load_config(self):
+        self.config = GittyupLocalFallbackConfig(self.repo.path)
+
     #
     # Start Public Methods
     #
@@ -120,10 +123,12 @@ class GittyupClient:
         if not os.path.exists(path):
             os.mkdir(path)
         self.repo = dulwich.repo.Repo.init(path)
+        self._load_config()
 
     def set_repository(self, path):
         try:
             self.repo = dulwich.repo.Repo(os.path.realpath(path))
+            self._load_config()
         except dulwich.errors.NotGitRepository:
             raise NotRepositoryError()
 
@@ -133,7 +138,7 @@ class GittyupClient:
     def is_tracking(self, name):
         return (self.repo.refs["HEAD"] == "ref: %s" % name)
 
-    def tracking(self, name):
+    def tracking(self):
         return self.repo.refs["HEAD"][5:]
     
     def stage(self, paths):
@@ -280,29 +285,45 @@ class GittyupClient:
             if name in relative_paths or len(paths) == 0:
                 self._write_blob_to_file(name, self.repo.get_blob(sha))
     
-    def commit(self, message, commit_all=False):
+    def commit(self, message, parents=None, committer=None, commit_time=None, 
+            commit_timezone=None, author=None, author_time=None, 
+            author_timezone=None, encoding=None, commit_all=False):
+
         if commit_all:
-            self.stage_all_changed()
+            self.stage_all()
 
         commit = dulwich.objects.Commit()
+        commit.message = message
+        commit.tree = commit_index(self.repo.object_store, self._get_index())
+
         initial_commit = False
         try:
-            commit.parents = [self.repo.head()]
+            commit.parents = (parents and parents or [self.repo.head()])
         except KeyError:
             # The initial commit has no parent
             initial_commit = True
             pass
+
+        try:
+            config_user_name = self.config.get("user", "name")
+            config_user_email = self.config.get("user", "email")
+            config_user = "%s <%s>" % (config_user_name, config_user_email)
+        except KeyError:
+            config_user = None        
+
+        commit.committer = (committer and committer or config_user)
+        commit.commit_time = (commit_time and commit_time or int(time()))
+        commit.commit_timezone = (commit_timezone and commit_timezone or TZ)
         
-        commit.tree = commit_index(self.repo.object_store, self._get_index())
-        commit.message = message
-        commit.author = commit.committer = AUTHOR
-        commit.commit_time = commit.author_time = int(time())
-        commit.commit_timezone = commit.author_timezone = TZ
-        commit.encoding = ENCODING
+        commit.author = (author and author or config_user)
+        commit.author_time = (author_time and author_time or int(time()))
+        commit.author_timezone = (author_timezone and author_timezone or TZ)        
+        
+        commit.encoding = (encoding and encoding or ENCODING)
         
         self.repo.object_store.add_object(commit)
         
-        self.repo.refs["refs/heads/master"] = commit.id
+        self.repo.refs[self.tracking()] = commit.id
         
         if initial_commit:
             self.track("refs/heads/master")

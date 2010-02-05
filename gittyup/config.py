@@ -2,79 +2,89 @@
 # config.py
 #
 
-import re
-import string
+from _configobj.configobj import ConfigObj
 
 class GittyupConfig:
-    config = {}
-    
     def __init__(self, path):
         self.path = path
-        self._read_config()
-        
-    def _read_config(self):
-        f = open(self.path, "r")
-        try:
-            config_text = f.read()
-        finally:
-            f.close()
-
-        self._parse_config(config_text)
-    
-    def _write_config(self):
-        config_text = ""
-        for section_name, items in self.config.items():
-            config_text += "[%s]\n" % section_name
-            for key, value in items.items():
-                config_text += "\t%s = %s\n" % (key, value)
-        
-        f = open(self.path, "w")
-        try:
-            f.write(config_text)
-        finally:
-            f.close()
-    
-    def _parse_config(self, config_text):
-        self.config = {}
-        for line in config_text.split("\n"):
-            section = re.match("^\[(.*?)\]$", line)
-            item = re.match("^\t(.*?)\s\=\s(.*?)$", line)
-            if section:
-                current_section = section.group(1)
-                self.config[current_section] = {}
-            elif item:
-                val = item.group(2)
-                if val in string.digits:
-                    val = int(val)
-                elif val in ("true", "false"):
-                    val = bool(val)
-                    
-                self.config[current_section][item.group(1)] = val
+        self._config = ConfigObj(path, indent_type="\t")
     
     def set(self, section, key, value):
-        if section not in self.config:
-            self.config[section] = {}
+        if section not in self._config:
+            self._config[section] = {}
             
-        self.config[section][key] = value
+        self._config[section][key] = value
     
     def get(self, section, key):
-        return self.config[section][key]
+        return self._config[section][key]
+
+    def has(self, section, key):
+        return (key in self._config[section])
+
+    def rename(self, section, old_key, new_key):
+        self._config[section][new_key] = self._config[section][old_key]
+        del self._config[section][old_key]
 
     def get_all(self):
-        return self.config
+        return self._config.items()
     
     def set_section(self, section, items):
-        self.config[section] = items
+        self._config[section] = items
 
     def get_section(self, section):
-        return self.config[section]
+        return self._config[section]
+
+    def has_section(self, section):
+        return (section in self._config)
     
     def rename_section(self, old_section, new_section):
-        self.config[new_section] = self.config[old_section]
-        del self.config[old_section]
+        self._config[new_section] = self._config[old_section]
+        del self._config[old_section]
     
     def remove_section(self, section):
-        del self.config[section]
+        del self._config[section]
+
+    def get_inline_comment(self, section, key):
+        if key is not None:
+            return self._config[section].inline_comments[key]
+        else:
+            return self._config.inline_comments[section]
+    
+    def set_inline_comment(self, section, key, value):
+        if section not in self._config.inline_comments:
+            self._config.inline_comments[section] = {}
+        
+        if key is not None:
+            self._config[section].inline_comments[key] = value
+        else:
+            self._config.inline_comments[section] = value
+    
+    def remove_inline_comment(self, section, key):
+        if key is not None:
+            del self._config[section].inline_comments[key]
+        else:
+            self._config.inline_comments[section]
+
+    def get_comment(self, section, key):
+        if key is not None:
+            return self._config[section].comments[key]
+        else:
+            return self._config.comments[section]
+    
+    def set_comment(self, section, key, value):
+        if section not in self._config.comments:
+            self._config[section].comments = {}
+        
+        if key is not None:
+            self._config[section].comments[key] = value
+        else:
+            self._config.comments[section] = value
+    
+    def remove_comment(self, section, key):
+        if key is not None:
+            del self._config[section].comments[key]
+        else:
+            del self._config.comments[section]
         
     def write(self):
-        self._write_config()
+        self._config.write()

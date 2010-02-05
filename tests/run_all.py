@@ -10,7 +10,8 @@ def cleanup(modules):
 
 modules = [
     "branch.py", 
-    "stage.py"
+    "stage.py",
+    "config.py"
 ]
 
 if len(argv) == 2 and  argv[1] == "--cleanup":

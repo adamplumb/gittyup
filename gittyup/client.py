@@ -13,6 +13,7 @@ from dulwich.index import commit_index, write_index_dict, SHA1Writer
 from gittyup.exceptions import *
 from gittyup.util import relativepath, splitall
 from gittyup.objects import *
+from gittyup.config import GittyupConfig
 
 AUTHOR = "Adam Plumb <adamplumb@gmail.com>"
 TZ = dulwich.objects.parse_timezone("-500")

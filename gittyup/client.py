@@ -315,6 +315,11 @@ class GittyupClient:
             pass
 
         config_user = self._get_config_user()
+        if config_user is None:
+            if committer is None:
+                raise ValueError("The committing person has not been specified")
+            if author is None:
+                raise ValueError("The author has not been specified")
 
         commit.committer = (committer and committer or config_user)
         commit.commit_time = (commit_time and commit_time or int(time()))
@@ -341,6 +346,10 @@ class GittyupClient:
         tag = dulwich.objects.Tag()
         
         config_user = self._get_config_user()
+
+        if config_user is None:
+            if tagger is None:
+                raise ValueError("The tagging person has not been specified")
         
         tag.name = name
         tag.message = message

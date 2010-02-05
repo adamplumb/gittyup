@@ -16,6 +16,13 @@ def get_system_config_path():
 
 class GittyupConfig:
     def __init__(self, path):
+        """
+        Provides direct access to any arbitrary git config file
+        
+        @type   path    string
+        @param  path    The git config file path
+        
+        """
         self.path = path
         self._config = ConfigObj(path, indent_type="\t")
     
@@ -102,17 +109,37 @@ class GittyupConfig:
 
 class GittyupLocalConfig(GittyupConfig):
     def __init__(self, repository_path):
+        """
+        Provides direct access to a local repository's git config file
+        
+        @type   repository_path string
+        @param  repository_path The root folder of a git repository
+        
+        """
         GittyupConfig.__init__(self, get_local_config_path(repository_path))
         
 class GittyupGlobalConfig(GittyupConfig):
     def __init__(self):
+        """
+        Provides direct access to the global-level git config file
+        
+        """
         GittyupConfig.__init__(self, get_global_config_path())
 
 class GittyupSystemConfig(GittyupConfig):
     def __init__(self):
+        """
+        Provides direct access to the system-level git config file
+        
+        """
         GittyupConfig.__init__(self, get_system_config_path())
 
 class GittyupFallbackConfig:
+    """
+    An abstract class to provide transparent support for accessing local, global,
+    and system-level git config files.  Must be sub-classed.
+    
+    """
     def set(self, section, key, value):
         self._config(section, key).set(section, key, value)
     
@@ -166,6 +193,14 @@ class GittyupFallbackConfig:
 
 class GittyupLocalFallbackConfig(GittyupFallbackConfig):
     def __init__(self, repository_path):
+        """
+        Provides transparent access to the local, global, and system-level
+        git config files.
+        
+        @type   repository_path string
+        @param  repository_path The root folder of a git repository
+        
+        """
         self._local = GittyupLocalConfig(repository_path)
         self._global = GittyupGlobalConfig()
         self._system = GittyupSystemConfig()
@@ -190,6 +225,12 @@ class GittyupLocalFallbackConfig(GittyupFallbackConfig):
 
 class GittyupGlobalFallbackConfig(GittyupFallbackConfig):
     def __init__(self):
+        """
+        Provides transparent access to the global and system-level git config 
+        files.  It is useful for when you want to set global or system level 
+        config parameters, but don't need to access a local repository.
+
+        """
         self._global = GittyupGlobalConfig()
         self._system = GittyupSystemConfig()
 

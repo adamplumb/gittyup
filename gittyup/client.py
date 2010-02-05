@@ -115,6 +115,14 @@ class GittyupClient:
     def _load_config(self):
         self.config = GittyupLocalFallbackConfig(self.repo.path)
 
+    def _get_config_user(self):
+        try:
+            config_user_name = self.config.get("user", "name")
+            config_user_email = self.config.get("user", "email")
+            return "%s <%s>" % (config_user_name, config_user_email)
+        except KeyError:
+            return None
+        
     #
     # Start Public Methods
     #
@@ -306,12 +314,7 @@ class GittyupClient:
             initial_commit = True
             pass
 
-        try:
-            config_user_name = self.config.get("user", "name")
-            config_user_email = self.config.get("user", "email")
-            config_user = "%s <%s>" % (config_user_name, config_user_email)
-        except KeyError:
-            config_user = None        
+        config_user = self._get_config_user()
 
         commit.committer = (committer and committer or config_user)
         commit.commit_time = (commit_time and commit_time or int(time()))
@@ -332,19 +335,30 @@ class GittyupClient:
 
         return commit.id
     
-    def tag(self, name, message):
+    def tag(self, name, message, tagger=None, tag_time=None, tag_timezone=None,
+            tag_object=None, track=False):
+            
         tag = dulwich.objects.Tag()
         
+        config_user = self._get_config_user()
+        
         tag.name = name
-        tag.tagger = AUTHOR
-        tag.tag_time = int(time())
-        tag.tag_timezone = TZ
         tag.message = message
-        tag.set_object((DULWICH_COMMIT_TYPE, self.repo.head()))
+        tag.tagger = (tagger and tagger or config_user)
+        tag.tag_time = (tag_time and tag_time or int(time()))
+        tag.tag_timezone = (tag_timezone and tag_timezone or TZ)
+        
+        if tag_object is None:
+            tag_object = (DULWICH_COMMIT_TYPE, self.repo.head())
+
+        tag.set_object(tag_object)
 
         self.repo.object_store.add_object(tag)
         
         self.repo.refs["refs/tags/%s" % name] = tag.id
+        
+        if track:
+            self.track("refs/tags/%s" % name)
         
         return tag.id
     

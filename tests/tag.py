@@ -15,12 +15,12 @@ parser = OptionParser()
 parser.add_option("-c", "--cleanup", action="store_true", default=False)
 (options, args) = parser.parse_args(argv)
 
-DIR = "commit"
+DIR = "tag"
 
 if options.cleanup:
     rmtree(DIR, ignore_errors=True)
 
-    print "commit.py clean"
+    print "tag.py clean"
 else:
     if os.path.isdir(DIR):
         raise SystemExit("This test script has already been run.  Please call this script with --cleanup to start again")
@@ -33,10 +33,9 @@ else:
     touch(DIR + "/test2.txt")
     
     g.stage([DIR+"/test1.txt", DIR+"/test2.txt"])
-    g.commit("First commit", commit_all=True)
+    commit_id = g.commit("First commit", commit_all=True)
     
-    change(DIR + "/test1.txt")
-    g.stage([DIR+"/test1.txt"])
-    g.commit("Second commit", author="Alex Plumb <alexplumb@gmail.com>")
+    tag_id = g.tag("tag1", "Tagging as tag1", track=True)
+    assert (g.is_tracking("refs/tags/tag1"))
     
-    print "commit.py pass"
+    print "tag.py pass"

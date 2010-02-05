@@ -7,7 +7,7 @@ from shutil import rmtree
 from sys import argv
 from optparse import OptionParser
 
-from cobragit.client import GittyupClient
+from gittyup.client import GittyupClient
 from util import touch
 
 parser = OptionParser()

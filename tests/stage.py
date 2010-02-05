@@ -7,8 +7,8 @@ from shutil import rmtree
 from sys import argv
 from optparse import OptionParser
 
-from cobragit.client import GittyupClient
-from cobragit.objects import *
+from gittyup.client import GittyupClient
+from gittyup.objects import *
 from util import touch, change
 
 parser = OptionParser()
@@ -54,7 +54,7 @@ else:
     g.stage([DIR+"/test1.txt"])
     g.commit("Test commit")
     change(DIR+"/test1.txt")
-    g.stage_all_changed()
+    g.stage_all()
     st = g.status()
     assert (g.is_staged(st[0].path))
     assert (not g.is_staged(st[1].path))

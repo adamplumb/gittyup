@@ -3,21 +3,19 @@
 #
 
 import os
-
 from time import time
 
-from dulwich import errors
-from dulwich.repo import Repo
-from dulwich.objects import Blob, Tree, Commit, Tag, parse_timezone
-from dulwich.index import commit_index, SHA1Writer, write_index_dict
-from dulwich.errors import NotGitRepository
+import dulwich.errors
+import dulwich.repo
+import dulwich.objects
+from dulwich.index import commit_index, write_index_dict, SHA1Writer
 
 from gittyup.exceptions import *
 from gittyup.util import relativepath, splitall
 from gittyup.objects import *
 
 AUTHOR = "Adam Plumb <adamplumb@gmail.com>"
-TZ = parse_timezone("-500")
+TZ = dulwich.objects.parse_timezone("-500")
 ENCODING = "UTF-8"
 
 DULWICH_COMMIT_TYPE = 1
@@ -29,8 +27,8 @@ class GittyupClient:
     def __init__(self, path=None, create=False):        
         if path:
             try:
-                self.repo = Repo(os.path.realpath(path))
-            except NotGitRepository:
+                self.repo = dulwich.repo.Repo(os.path.realpath(path))
+            except dulwich.errors.NotGitRepository:
                 if create:
                     self.repo = self.initialize_repository(path)
                 else:
@@ -59,7 +57,7 @@ class GittyupClient:
         try:
             tree = self.repo.tree(self.repo.commit(self.repo.head()).tree)
         except KeyError, e:
-            tree = Tree()
+            tree = dulwich.objects.Tree()
 
         return tree
 
@@ -98,7 +96,7 @@ class GittyupClient:
     def _get_blob_from_file(self, path):
         file = open(path, "rb")
         try:
-            blob = Blob.from_string(file.read())
+            blob = dulwich.objects.Blob.from_string(file.read())
         finally:
             file.close()
         
@@ -116,12 +114,12 @@ class GittyupClient:
     def initialize_repository(self, path):
         if not os.path.exists(path):
             os.mkdir(path)
-        self.repo = Repo.init(path)
+        self.repo = dulwich.repo.Repo.init(path)
 
     def set_repository(self, path):
         try:
-            self.repo = Repo(os.path.realpath(path))
-        except NotGitRepository:
+            self.repo = dulwich.repo.Repo(os.path.realpath(path))
+        except dulwich.errors.NotGitRepository:
             raise GittyupNotRepository()
 
     def track(self, name):
@@ -281,7 +279,7 @@ class GittyupClient:
         if commit_all:
             self.stage_all_changed()
 
-        commit = Commit()
+        commit = dulwich.objects.Commit()
         initial_commit = False
         try:
             commit.parents = [self.repo.head()]
@@ -305,7 +303,7 @@ class GittyupClient:
             self.track("refs/heads/master")
     
     def tag(self, name, message):
-        tag = Tag()
+        tag = dulwich.objects.Tag()
         
         tag.name = name
         tag.tagger = AUTHOR
@@ -384,6 +382,6 @@ class GittyupClient:
     def log(self):
         try:
             return self.repo.revision_history(self.repo.head())
-        except NotCommitError:
+        except dulwich.errors.NotCommitError:
             raise GittyupNotCommit()
             return None

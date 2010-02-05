@@ -10,7 +10,7 @@ from optparse import OptionParser
 from gittyup.client import GittyupClient
 from gittyup.objects import *
 from util import touch, change
-from gittyup.config import GittyupConfig
+from gittyup.config import GittyupLocalFallbackConfig, GittyupConfig
 
 parser = OptionParser()
 parser.add_option("-c", "--cleanup", action="store_true", default=False)
@@ -27,7 +27,7 @@ else:
         raise SystemExit("This test script has already been run.  Please call this script with --cleanup to start again")
 
     g = GittyupClient(DIR, create=True)
-    c = GittyupConfig(DIR+"/.git/config")
+    c = GittyupLocalFallbackConfig(DIR)
     
     # Create config items
     c.set("core", "filemode", True)
@@ -45,7 +45,7 @@ else:
 
     del c
     
-    c = GittyupConfig(DIR+"/.git/config")
+    c = GittyupLocalFallbackConfig(DIR)
 
     assert (c.has("newsection_RE", "newitem_RE"))
     assert (c.get_comment("core", "filemode")[0].find("Regular comment") != -1)
@@ -56,5 +56,5 @@ else:
     c = GittyupConfig("./data/config/config.example")
     
     assert (c.has("diff", "renames"))
-    
+
     print "config.py pass"

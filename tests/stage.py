@@ -35,20 +35,20 @@ else:
     # Stage both files
     g.stage([DIR+"/test1.txt", DIR+"/test2.txt"])
     st = g.status()
-    assert (st[0] == GittyupAddedStatus)
-    assert (st[1] == GittyupAddedStatus)
+    assert (st[0] == AddedStatus)
+    assert (st[1] == AddedStatus)
     
     # Unstage both files
     g.unstage([DIR+"/test1.txt", DIR+"/test2.txt"])
     st = g.status()
-    assert (st[0] == GittyupUntrackedStatus)
-    assert (st[1] == GittyupUntrackedStatus)
+    assert (st[0] == UntrackedStatus)
+    assert (st[1] == UntrackedStatus)
     
     # Untracked files should not be staged
     g.stage_all()
     st = g.status()
-    assert (st[0] == GittyupUntrackedStatus)
-    assert (st[1] == GittyupUntrackedStatus)
+    assert (st[0] == UntrackedStatus)
+    assert (st[1] == UntrackedStatus)
     
     # test1.txt is changed, so it should get staged and set as Modified
     g.stage([DIR+"/test1.txt"])

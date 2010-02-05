@@ -32,7 +32,7 @@ class GittyupClient:
                 if create:
                     self.repo = self.initialize_repository(path)
                 else:
-                    raise GittyupNotRepository()
+                    raise NotRepositoryError()
         else:
             self.repo = None
 
@@ -120,7 +120,7 @@ class GittyupClient:
         try:
             self.repo = dulwich.repo.Repo(os.path.realpath(path))
         except dulwich.errors.NotGitRepository:
-            raise GittyupNotRepository()
+            raise NotRepositoryError()
 
     def track(self, name):
         self.repo.refs["HEAD"] = "ref: %s" % name
@@ -157,10 +157,10 @@ class GittyupClient:
     def stage_all(self):
         index = self._get_index()
         for status in self.status():
-            if status in [GittyupAddedStatus, GittyupRemovedStatus, GittyupModifiedStatus]:
+            if status in [AddedStatus, RemovedStatus, ModifiedStatus]:
                 self.stage(self._get_absolute_path(status.path))
 
-            if status == GittyupMissingStatus:
+            if status == MissingStatus:
                 del index[status.path]
                 index.write()           
 
@@ -211,7 +211,7 @@ class GittyupClient:
             try:
                 commit = self.repo.commit(commit_sha)
             except AssertionError:
-                raise GittyupNotCommit(commit_sha)
+                raise NotCommitError(commit_sha)
         else:
             commit = self.repo.commit(self.repo.head())
 
@@ -245,7 +245,7 @@ class GittyupClient:
         branches = []
         for ref,branch_sha in refs.items():
             if ref.startswith("refs/heads"):
-                branch = GittyupBranch(ref[11:], branch_sha, self.repo[branch_sha])
+                branch = Branch(ref[11:], branch_sha, self.repo[branch_sha])
                 branches.append(branch)
         
         return branches
@@ -256,13 +256,13 @@ class GittyupClient:
             try:
                 tree = self.repo.tree(tree_sha)
             except AssertionError:
-                raise GittyupNotTree(tree_sha)
+                raise NotTreeError(tree_sha)
         elif commit_sha:
             try:
                 commit = self.repo.commit(commit_sha)
                 tree = commit.tree
             except AssertionError:
-                raise GittyupNotCommit(commit_sha)
+                raise NotCommitError(commit_sha)
 
         if not tree:
             tree = self._get_tree_at_head()
@@ -327,7 +327,7 @@ class GittyupClient:
         tags = []
         for ref,tag_sha in refs.items():
             if ref.startswith("refs/tags"):
-                tag = GittyupTag(tag_sha, self.repo[tag_sha])
+                tag = Tag(tag_sha, self.repo[tag_sha])
                 tags.append(tag)
         
         return tags
@@ -349,16 +349,16 @@ class GittyupClient:
                         
                         blob = self._get_blob_from_file(absolute_path)
                         if blob.id == index[name][8]:
-                            statuses.append(GittyupNormalStatus(name))
+                            statuses.append(NormalStatus(name))
                         else:
-                            statuses.append(GittyupModifiedStatus(name))
+                            statuses.append(ModifiedStatus(name))
                     else:
                         # Removed
-                        statuses.append(GittyupRemovedStatus(name))
+                        statuses.append(RemovedStatus(name))
                 else:
                     # Missing
                     tracked_paths.remove(name)
-                    statuses.append(GittyupMissingStatus(name))
+                    statuses.append(MissingStatus(name))
 
                 try:
                     paths.remove(name)
@@ -367,7 +367,7 @@ class GittyupClient:
 
         for name in tracked_paths:
             # Added
-            statuses.append(GittyupAddedStatus(name))
+            statuses.append(AddedStatus(name))
             try:
                 paths.remove(name)
             except ValueError:
@@ -375,7 +375,7 @@ class GittyupClient:
 
         # Find untrackedfiles
         for path in paths:
-            statuses.append(GittyupUntrackedStatus(path))
+            statuses.append(UntrackedStatus(path))
 
         return statuses
     
@@ -383,5 +383,5 @@ class GittyupClient:
         try:
             return self.repo.revision_history(self.repo.head())
         except dulwich.errors.NotCommitError:
-            raise GittyupNotCommit()
+            raise NotCommitError()
             return None

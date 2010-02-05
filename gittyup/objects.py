@@ -8,33 +8,33 @@ class GittyupStatus:
         self.path = path
 
     def __repr__(self):
-        return "<GittyupStatus %s %s>" % (self.path, self.identifier)
+        return "<Status %s %s>" % (self.path, self.identifier)
 
     def __eq__(self, other):
         return (self.identifier == other.identifier)
 
-class GittyupNormalStatus(GittyupStatus):
+class NormalStatus(GittyupStatus):
     identifier = "normal"
 
-class GittyupAddedStatus(GittyupStatus):
+class AddedStatus(GittyupStatus):
     identifier = "added"
 
-class GittyupRenamedStatus(GittyupStatus):
+class RenamedStatus(GittyupStatus):
     identifier = "renamed"
 
-class GittyupRemovedStatus(GittyupStatus):
+class RemovedStatus(GittyupStatus):
     identifier = "removed"
 
-class GittyupModifiedStatus(GittyupStatus):
+class ModifiedStatus(GittyupStatus):
     identifier = "modified"
 
-class GittyupKilledStatus(GittyupStatus):
+class KilledStatus(GittyupStatus):
     identifier = "killed"    
 
-class GittyupUntrackedStatus(GittyupStatus):
+class UntrackedStatus(GittyupStatus):
     identifier = "untracked"
 
-class GittyupMissingStatus(GittyupStatus):
+class MissingStatus(GittyupStatus):
     identifier = "missing"
 
 
@@ -44,9 +44,9 @@ class GittyupObject:
         self.sha = sha
         self.obj = obj
 
-class GittyupCommit(GittyupObject):
+class Commit(GittyupObject):
     def __repr__(self):
-        return "<GittyupCommit %s>" % self.sha
+        return "<Commit %s>" % self.sha
 
     @property
     def parents(self):
@@ -84,9 +84,9 @@ class GittyupCommit(GittyupObject):
     def encoding(self):
         return self.obj.encoding
 
-class GittyupTag(GittyupObject):
+class Tag(GittyupObject):
     def __repr__(self):
-        return "<GittyupTag %s>" % self.name
+        return "<Tag %s>" % self.name
 
     @property
     def name(self):
@@ -112,18 +112,18 @@ class GittyupTag(GittyupObject):
     def tag_timezone(self):
         return self.obj.tag_timezone
 
-class GittyupTree(GittyupObject):
+class Tree(GittyupObject):
     def __repr__(self):
-        return "<GittyupTree %s>" % self.sha
+        return "<Tree %s>" % self.sha
 
-class GittyupBranch(GittyupCommit):
+class Branch(Commit):
     def __init__(self, name, sha, obj):
         self.name = name
         self.sha = sha
         self.obj = obj
 
     def __repr__(self):
-        return "<GittyupBranch %s %s>" % (self.name, self.sha)
+        return "<Branch %s %s>" % (self.name, self.sha)
 
     @property
     def name(self):

@@ -215,7 +215,9 @@ class GittyupLocalFallbackConfig(GittyupFallbackConfig):
         self._must_write_to_system = False
 
     def _config(self, section, key=None):
-        if self._system.has(section, key):
+        if self._local.has(section, key):
+            return self._local
+        elif self._system.has(section, key):
             self._must_write_to_system = True
             return self._system
         elif self._global.has(section, key):
@@ -245,7 +247,9 @@ class GittyupGlobalFallbackConfig(GittyupFallbackConfig):
         self._must_write_to_system = False
 
     def _config(self, section, key=None):
-        if self._system.has(section, key):
+        if self._global.has(section, key):
+            return self._global
+        elif self._system.has(section, key):
             self._must_write_to_system = True
             return self._system
         else:

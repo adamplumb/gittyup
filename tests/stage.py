@@ -56,13 +56,13 @@ else:
     change(DIR+"/test1.txt")
     g.stage_all()
     st = g.status()
-    assert (g.is_staged(st[0].path))
-    assert (not g.is_staged(st[1].path))
+    assert (g.is_staged(DIR+"/" + st[0].path))
+    assert (not g.is_staged(DIR+"/" + st[1].path))
 
     # Unstage all staged files
     g.unstage_all()
     st = g.status()
-    assert (not g.is_staged(st[0].path))
-    assert (not g.is_staged(st[1].path))
+    assert (not g.is_staged(DIR+"/" + st[0].path))
+    assert (not g.is_staged(DIR+"/" + st[1].path))
     
     print "stage.py pass"

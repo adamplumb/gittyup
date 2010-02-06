@@ -184,21 +184,23 @@ class GittyupClient:
 
     def unstage(self, paths):
         index = self._get_index()
+        tree = self._get_tree_at_head()
 
         if isinstance(paths, str):
             paths = [paths]
         
         for path in paths:
             relative_path = self._get_relative_path(path)
-
             if relative_path in index:
-                tree = self._get_tree_at_head()
                 if relative_path in tree:
                     (ctime, mtime, dev, ino, mode, uid, gid, size, blob_id, flags) = index[relative_path]
                     (mode, blob_id) = tree[relative_path]
                     index[relative_path] = (ctime, mtime, dev, ino, mode, uid, gid, size, blob_id, flags)
                 else:
                     del index[relative_path]
+            else:
+                if relative_path in tree:
+                    index[relative_path] = (0, 0, 0, 0, tree[relative_path][0], 0, 0, 0, tree[relative_path][1], 0)
 
         index.write()
     
@@ -215,14 +217,16 @@ class GittyupClient:
             for item in index.changes_from_tree(self.repo.object_store, tree.id):
                 ((old_name, new_name), (old_mode, new_mode), (old_sha, new_sha)) = item
 
-                staged.append(new_name)
+                if new_name:
+                    staged.append(new_name)
                 if old_name and old_name != new_name:
                     staged.append(old_name)
-        
+
         return staged
 
     def is_staged(self, path):
-        return (path in self.get_staged())
+        relative_path = self._get_relative_path(path)
+        return (relative_path in self.get_staged())
     
     def branch(self, name, commit_sha=None, track=False):
         if commit_sha:
@@ -291,9 +295,15 @@ class GittyupClient:
         for path in paths:
             relative_paths = self._get_relative_path(path)
 
+        index = self._get_index()
         for (name, mode, sha) in self.repo.object_store.iter_tree_contents(tree.id):
             if name in relative_paths or len(paths) == 0:
-                self._write_blob_to_file(name, self.repo.get_blob(sha))
+                blob = self.repo.get_blob(sha)
+                absolute_path = self._get_absolute_path(name)
+                self._write_blob_to_file(absolute_path, blob)                
+
+                (mode, ino, dev, nlink, uid, gid, size, atime, mtime, ctime) = os.stat(absolute_path)
+                index[name] = (ctime, mtime, dev, ino, mode, uid, gid, size, blob.id, 0)
     
     def commit(self, message, parents=None, committer=None, commit_time=None, 
             commit_timezone=None, author=None, author_time=None, 
@@ -339,6 +349,20 @@ class GittyupClient:
             self.track("refs/heads/master")
 
         return commit.id
+    
+    def remove(self, paths):
+        if isinstance(paths, str):
+            paths = [paths]
+
+        index = self._get_index()
+        
+        for path in paths:
+            relative_path = self._get_relative_path(path)
+            if relative_path in index:
+                del index[relative_path]
+                os.remove(path)
+
+        index.write()        
     
     def tag(self, name, message, tagger=None, tag_time=None, tag_timezone=None,
             tag_object=None, track=False):
@@ -395,25 +419,24 @@ class GittyupClient:
         statuses = []
         tracked_paths = set(index)
         if len(tree) > 0:
-            for (name, mode, sha) in self.repo.object_store.iter_tree_contents(tree.id):
-                absolute_path = self._get_absolute_path(name)
-                if os.path.exists(absolute_path):
-                    if name in tracked_paths:
-                        # Cached, determine if modified or not
-                        tracked_paths.remove(name)
-                        
+            for (name, mode, sha) in self.repo.object_store.iter_tree_contents(tree.id):                
+                if name in tracked_paths:
+                    absolute_path = self._get_absolute_path(name)
+                    if os.path.exists(absolute_path):
+                        # Cached, determine if modified or not                        
                         blob = self._get_blob_from_file(absolute_path)
                         if blob.id == index[name][8]:
                             statuses.append(NormalStatus(name))
                         else:
                             statuses.append(ModifiedStatus(name))
                     else:
-                        # Removed
-                        statuses.append(RemovedStatus(name))
-                else:
-                    # Missing
+                        # Missing
+                        statuses.append(MissingStatus(name))
+                    
                     tracked_paths.remove(name)
-                    statuses.append(MissingStatus(name))
+                else:
+                    # Removed
+                    statuses.append(RemovedStatus(name))
 
                 try:
                     paths.remove(name)

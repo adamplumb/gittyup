@@ -14,7 +14,9 @@ modules = [
     "config.py",
     "commit.py",
     "tag.py",
-    "remove.py"
+    "remove.py",
+    "clone.py",
+    "move.py"
 ]
 
 if len(argv) == 2 and  argv[1] == "--cleanup":

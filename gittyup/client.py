@@ -3,15 +3,17 @@
 #
 
 import os
+import shutil
 from time import time, timezone
 
 import dulwich.errors
 import dulwich.repo
 import dulwich.objects
+from dulwich.pack import Pack
 from dulwich.index import commit_index, write_index_dict, SHA1Writer
 
 from gittyup.exceptions import *
-from gittyup.util import relativepath, splitall
+import gittyup.util
 from gittyup.objects import *
 from gittyup.config import GittyupLocalFallbackConfig
 
@@ -23,15 +25,18 @@ DULWICH_TREE_TYPE = 2
 DULWICH_BLOB_TYPE = 3
 DULWICH_TAG_TYPE = 4
 
+def notify(output):
+    print "Notify: ---%s---" % output
+
 class GittyupClient:
-    def __init__(self, path=None, create=False):        
+    def __init__(self, path=None, create=False):
         if path:
             try:
                 self.repo = dulwich.repo.Repo(os.path.realpath(path))
                 self._load_config()
             except dulwich.errors.NotGitRepository:
                 if create:
-                    self.repo = self.initialize_repository(path)
+                    self.initialize_repository(path)
                 else:
                     raise NotRepositoryError()
         else:
@@ -91,7 +96,7 @@ class GittyupClient:
         return None
 
     def _get_relative_path(self, path):
-        return relativepath(os.path.realpath(self.repo.path), path)      
+        return gittyup.util.relativepath(os.path.realpath(self.repo.path), path)      
     
     def _get_absolute_path(self, path):
         return os.path.join(self.repo.path, path)      
@@ -106,6 +111,10 @@ class GittyupClient:
         return blob
 
     def _write_blob_to_file(self, path, blob):
+        dirname = os.path.dirname(path)
+        if not os.path.isdir(dirname):
+            os.makedirs(dirname)
+    
         file = open(path, "wb")
         try:
             file.write(blob.get_data())
@@ -122,16 +131,38 @@ class GittyupClient:
             return "%s <%s>" % (config_user_name, config_user_email)
         except KeyError:
             return None
+    
+    def _write_packed_refs(self, refs):
+        packed_refs_str = ""
+        for ref,sha in refs.items():
+            packed_refs_str = "%s %s\n" % (sha, ref)
         
+        fd = open(os.path.join(self.repo.controldir(), "packed-refs"), "wb")
+        fd.write(packed_refs_str)
+        fd.close()
+    
     #
     # Start Public Methods
     #
     
-    def initialize_repository(self, path):
-        if not os.path.exists(path):
-            os.mkdir(path)
-        self.repo = dulwich.repo.Repo.init(path)
+    def initialize_repository(self, path, bare=False):
+        real_path = os.path.realpath(path)
+        if not os.path.isdir(real_path):
+            os.mkdir(real_path)
+
+        if bare:
+            self.repo = dulwich.repo.Repo.init_bare(real_path)
+        else:
+            self.repo = dulwich.repo.Repo.init(real_path)
+            
         self._load_config()
+
+        self.config.set_section("core", {
+            "logallrefupdates": "true",
+            "filemode": "true",
+            "base": "false",
+            "logallrefupdates": "true"
+        })
 
     def set_repository(self, path):
         try:
@@ -305,6 +336,36 @@ class GittyupClient:
                 (mode, ino, dev, nlink, uid, gid, size, atime, mtime, ctime) = os.stat(absolute_path)
                 index[name] = (ctime, mtime, dev, ino, mode, uid, gid, size, blob.id, 0)
     
+    def clone(self, host, path, bare=False, origin="origin"):
+        self.initialize_repository(path, bare)
+        refs = self.remote_add(host)
+
+        if bare: return
+
+        # Checkout the cloned repository into the local repository
+        obj = self.repo.commit(refs["HEAD"])
+        self.checkout(tree_sha=obj.tree)
+
+        # Set up refs so the local repository can track the remote repository
+        ref_key = "refs/remotes/%s/master" % origin
+        self._write_packed_refs({
+            ref_key: refs["refs/heads/master"]
+        })
+        self.repo.refs["HEAD"] = refs["HEAD"]
+        self.repo.refs["refs/heads/master"] = refs["refs/heads/master"]
+        self.repo.refs[ref_key] = refs["HEAD"]
+
+        # Set config information
+        self.config.set_section("remote \"%s\"" % origin, {
+            "fetch": "+refs/heads/*:refs/remotes/%s/*" % (origin),
+            "url": host
+        })
+        self.config.set_section('branch "master"', {
+            "remote": origin,
+            "merge": "refs/heads/master"
+        })
+        self.config.write()   
+    
     def commit(self, message, parents=None, committer=None, commit_time=None, 
             commit_timezone=None, author=None, author_time=None, 
             author_timezone=None, encoding=None, commit_all=False):
@@ -364,6 +425,47 @@ class GittyupClient:
 
         index.write()        
     
+    def move(self, source, dest):
+        index = self._get_index()
+        relative_source = self._get_relative_path(source)
+        relative_dest = self._get_relative_path(dest)
+
+        # Get a list of affected files so we can update the index
+        source_files = []
+        if os.path.isdir(source):
+            for name in index:
+                if name.startswith(relative_source):
+                    source_files.append(name)
+        else:
+            source_files.append(self._get_relative_path(source))
+
+        # Rename the affected index entries
+        for source_file in source_files:
+            new_path = source_file.replace(relative_source, relative_dest)            
+            if os.path.isdir(dest):
+                new_path = os.path.join(new_path, os.path.basename(source_file))
+
+            index[new_path] = index[source_file]
+            del index[source_file]
+
+        index.write()
+        
+        # Actually move the file/folder
+        shutil.move(source, dest)
+
+    
+    def remote_add(self, host):
+        client, host_path = gittyup.util.get_transport_and_path(host)
+
+        graphwalker = self.repo.get_graph_walker()
+        f, commit = self.repo.object_store.add_pack()
+        refs = client.fetch_pack(host_path, self.repo.object_store.determine_wants_all, 
+                          graphwalker, f.write, notify)
+
+        commit()
+        
+        return refs
+    
     def tag(self, name, message, tagger=None, tag_time=None, tag_timezone=None,
             tag_object=None, track=False):
             
@@ -419,7 +521,7 @@ class GittyupClient:
         statuses = []
         tracked_paths = set(index)
         if len(tree) > 0:
-            for (name, mode, sha) in self.repo.object_store.iter_tree_contents(tree.id):                
+            for (name, mode, sha) in self.repo.object_store.iter_tree_contents(tree.id):
                 if name in tracked_paths:
                     absolute_path = self._get_absolute_path(name)
                     if os.path.exists(absolute_path):

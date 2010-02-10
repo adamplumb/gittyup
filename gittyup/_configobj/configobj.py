@@ -1824,7 +1824,7 @@ class ConfigObj(Section):
         if ("'" in value) and ('"' in value):
             raise ConfigObjError('Value "%s" cannot be safely quoted.' % value)
         elif '"' in value:
-            quot = squot
+            quot = "%s" #XXX: Changed from squot by Adam Plumb Feb 8 2010
         else:
             quot = dquot
         return quot

@@ -1,5 +1,5 @@
 #
-# test/clone.py
+# test/pull.py
 #
 
 import os
@@ -14,18 +14,18 @@ parser = OptionParser()
 parser.add_option("-c", "--cleanup", action="store_true", default=False)
 (options, args) = parser.parse_args(argv)
 
-DIR = "clone"
+DIR = "pull"
 
 if options.cleanup:
     rmtree(DIR, ignore_errors=True)
 
-    print "clone.py clean"
+    print "pull.py clean"
 else:
     if os.path.isdir(DIR):
         raise SystemExit("This test script has already been run.  Please call this script with --cleanup to start again")
 
-    g = GittyupClient()
-    g.clone("git://github.com/adamplumb/sprout.git", DIR)
+    g = GittyupClient(DIR, create=True)
+    g.remote_add("git://github.com/adamplumb/gittyup.git")
+    g.pull("origin", "master")
 
-
-    print "clone.py pass"
+    print "pull.py pass"

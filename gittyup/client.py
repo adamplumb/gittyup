@@ -16,6 +16,7 @@ from gittyup.exceptions import *
 import gittyup.util
 from gittyup.objects import *
 from gittyup.config import GittyupLocalFallbackConfig
+from gittyup.command import GittyupCommand
 
 TZ = -1 * timezone
 ENCODING = "UTF-8"
@@ -338,7 +339,8 @@ class GittyupClient:
     
     def clone(self, host, path, bare=False, origin="origin"):
         self.initialize_repository(path, bare)
-        refs = self.remote_add(host)
+        self.remote_add(host, origin)
+        refs = self.fetch(host)
 
         if bare: return
 
@@ -356,10 +358,7 @@ class GittyupClient:
         self.repo.refs[ref_key] = refs["HEAD"]
 
         # Set config information
-        self.config.set_section("remote \"%s\"" % origin, {
-            "fetch": "+refs/heads/*:refs/remotes/%s/*" % (origin),
-            "url": host
-        })
+
         self.config.set_section('branch "master"', {
             "remote": origin,
             "merge": "refs/heads/master"
@@ -453,8 +452,14 @@ class GittyupClient:
         # Actually move the file/folder
         shutil.move(source, dest)
 
+    def pull(self, repository="origin", refspec="master"):
+        cmd = ["git", "pull", repository, refspec]
+        try:
+            (status, stdout, stderr) = GittyupCommand(cmd, cwd=self.repo.path).execute()
+        except GittyupCommandError, e:
+            print e
     
-    def remote_add(self, host):
+    def fetch(self, host):
         client, host_path = gittyup.util.get_transport_and_path(host)
 
         graphwalker = self.repo.get_graph_walker()
@@ -465,6 +470,11 @@ class GittyupClient:
         commit()
         
         return refs
+    
+    def remote_add(self, host, origin="origin"):
+        self.config.set("remote \"%s\"" % origin, "fetch", "+refs/heads/*:refs/remotes/%s/*" % origin)
+        self.config.set("remote \"%s\"" % origin, "url", host)
+        self.config.write()
     
     def tag(self, name, message, tagger=None, tag_time=None, tag_timezone=None,
             tag_object=None, track=False):

@@ -16,7 +16,8 @@ modules = [
     "tag.py",
     "remove.py",
     "clone.py",
-    "move.py"
+    "move.py",
+    "pull.py"
 ]
 
 if len(argv) == 2 and  argv[1] == "--cleanup":

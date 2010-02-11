@@ -477,7 +477,7 @@ class GittyupClient:
         self.config.set("remote \"%s\"" % origin, "url", host)
         self.config.write()
     
-    def remote_delete(self, origin):
+    def remote_delete(self, origin="origin"):
         self.config.remove_section("remote \"%s\"" % origin)
         self.config.write()
     

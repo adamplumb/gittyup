@@ -161,7 +161,7 @@ class GittyupFallbackConfig:
         self._config(section, old_key).rename(section, old_key, new_key)
     
     def get_all(self):
-        return self._config(section, key).get_all()
+        raise NotImplementedError()
     
     def set_section(self, section, items):
         self._config(section).set_section(section, items)
@@ -234,6 +234,14 @@ class GittyupLocalFallbackConfig(GittyupFallbackConfig):
             # if we must
             self._system.write()
 
+    def get_all(self):
+        ret = self._local._config
+        ret.update(self._global._config)
+        ret.update(self._system._config)
+        
+        return ret.items()
+        
+
 class GittyupGlobalFallbackConfig(GittyupFallbackConfig):
     def __init__(self):
         """
@@ -262,3 +270,9 @@ class GittyupGlobalFallbackConfig(GittyupFallbackConfig):
             # Only root can write to the system config file, so only do it
             # if we must
             self._system.write()
+
+    def get_all(self):
+        ret = self._global._config
+        ret.update(self._system._config)
+        
+        return ret.items()

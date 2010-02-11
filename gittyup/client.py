@@ -3,6 +3,7 @@
 #
 
 import os
+import re
 import shutil
 from time import time, timezone
 
@@ -475,6 +476,24 @@ class GittyupClient:
         self.config.set("remote \"%s\"" % origin, "fetch", "+refs/heads/*:refs/remotes/%s/*" % origin)
         self.config.set("remote \"%s\"" % origin, "url", host)
         self.config.write()
+    
+    def remote_delete(self, origin):
+        self.config.remove_section("remote \"%s\"" % origin)
+        self.config.write()
+    
+    def remote_list(self):
+        ret = []
+        for section, values in self.config.get_all():
+            if section.startswith("remote"):
+                m = re.match("^remote \"(.*?)\"$", section)
+                if m:
+                    ret.append({
+                        "origin": m.group(1),
+                        "url": values["url"],
+                        "fetch": values["fetch"]
+                    })
+
+        return ret
     
     def tag(self, name, message, tagger=None, tag_time=None, tag_timezone=None,
             tag_object=None, track=False):

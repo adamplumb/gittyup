@@ -15,7 +15,6 @@ class GittyupCommand:
             self.cwd = os.getcwd()
     
     def execute(self):
-        print self.command,self.cwd
         proc = subprocess.Popen(self.command, 
                                 cwd=self.cwd,
                                 stdin=None,

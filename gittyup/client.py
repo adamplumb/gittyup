@@ -488,7 +488,7 @@ class GittyupClient:
                 m = re.match("^remote \"(.*?)\"$", section)
                 if m:
                     ret.append({
-                        "origin": m.group(1),
+                        "remote": m.group(1),
                         "url": values["url"],
                         "fetch": values["fetch"]
                     })

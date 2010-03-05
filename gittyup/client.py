@@ -460,6 +460,13 @@ class GittyupClient:
         except GittyupCommandError, e:
             print e
     
+    def push(self, repository="origin", refspec="master"):
+        cmd = ["git", "push", repository, refspec]
+        try:
+            (status, stdout, stderr) = GittyupCommand(cmd, cwd=self.repo.path).execute()
+        except GittyupCommandError, e:
+            print e
+
     def fetch(self, host):
         client, host_path = gittyup.util.get_transport_and_path(host)
 

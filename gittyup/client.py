@@ -87,16 +87,6 @@ class GittyupClient:
         
         return sorted(paths)
 
-    def _get_repository_path(self, path):
-        path_to_check = os.path.realpath(path)
-        while path_to_check != "/" and path_to_check != "":
-            if os.path.isdir(os.path.join(path_to_check, ".git")):
-                return path_to_check
-            
-            path_to_check = os.path.split(path_to_check)[0]
-        
-        return None
-
     def _get_relative_path(self, path):
         return gittyup.util.relativepath(os.path.realpath(self.repo.path), path)      
     
@@ -173,6 +163,16 @@ class GittyupClient:
         except dulwich.errors.NotGitRepository:
             raise NotRepositoryError()
 
+    def find_repository_path(self, path):
+        path_to_check = os.path.realpath(path)
+        while path_to_check != "/" and path_to_check != "":
+            if os.path.isdir(os.path.join(path_to_check, ".git")):
+                return path_to_check
+            
+            path_to_check = os.path.split(path_to_check)[0]
+        
+        return None
+
     def track(self, name):
         self.repo.refs["HEAD"] = "ref: %s" % name
 
@@ -183,6 +183,14 @@ class GittyupClient:
         return self.repo.refs["HEAD"][5:]
     
     def stage(self, paths):
+        """
+        Stage files to be committed or tracked
+        
+        @type   paths: list
+        @param  paths: A list of files
+        
+        """
+
         tree = self._get_tree_at_head()
         index = self._get_index()
         
@@ -206,6 +214,11 @@ class GittyupClient:
             self.repo.object_store.add_object(blob)
     
     def stage_all(self):
+        """
+        Stage all files in a repository to be committed or tracked
+        
+        """
+        
         index = self._get_index()
         for status in self.status():
             if status in [AddedStatus, RemovedStatus, ModifiedStatus]:
@@ -216,6 +229,14 @@ class GittyupClient:
                 index.write()           
 
     def unstage(self, paths):
+        """
+        Unstage files so they are not committed or tracked
+        
+        @type   paths: list
+        @param  paths: A list of files
+        
+        """
+        
         index = self._get_index()
         tree = self._get_tree_at_head()
 
@@ -238,11 +259,24 @@ class GittyupClient:
         index.write()
     
     def unstage_all(self):
+        """
+        Unstage all files so they are not committed or tracked
+        
+        @type   paths: list
+        @param  paths: A list of files
+        
+        """
+        
         index = self._get_index()
         for status in self.status():
             self.unstage(self._get_absolute_path(status.path))
     
     def get_staged(self):
+        """
+        Gets a list of files that are staged
+        
+        """
+
         staged = []
         tree = self._get_tree_at_head()
         index = self._get_index()
@@ -258,10 +292,35 @@ class GittyupClient:
         return staged
 
     def is_staged(self, path):
+        """
+        Determines if the specified path is staged
+        
+        @type   path: string
+        @param  path: A file path
+        
+        @rtype  boolean
+        
+        """
+        
         relative_path = self._get_relative_path(path)
         return (relative_path in self.get_staged())
     
     def branch(self, name, commit_sha=None, track=False):
+        """
+        Create a new branch
+        
+        @type   name: string
+        @param  name: The name of the new branch
+        
+        @type   commit_sha: string
+        @param  commit_sha: A commit sha to branch from.  If None, branches
+                    from head
+        
+        @type   track: boolean
+        @param  track: Whether or not to track the new branch, or just create it
+        
+        """
+
         if commit_sha:
             try:
                 commit = self.repo.commit(commit_sha)
@@ -278,6 +337,14 @@ class GittyupClient:
         return commit.id
 
     def branch_delete(self, name):
+        """
+        Delete a branch
+        
+        @type   name: string
+        @param  name: The name of the branch
+        
+        """
+        
         ref_name = "refs/heads/%s" % name
         refs = self.repo.get_refs()
         if ref_name in refs:
@@ -287,6 +354,17 @@ class GittyupClient:
             del self.repo.refs[ref_name]
 
     def branch_rename(self, old_name, new_name):
+        """
+        Rename a branch
+
+        @type   old_name: string
+        @param  old_name: The name of the branch to be renamed
+
+        @type   new_name: string
+        @param  new_name: The name of the new branch
+
+        """
+        
         old_ref_name = "refs/heads/%s" % old_name
         new_ref_name = "refs/heads/%s" % new_name
         refs = self.repo.get_refs()
@@ -298,6 +376,11 @@ class GittyupClient:
             del self.repo.refs[old_ref_name]
 
     def branch_list(self):
+        """
+        List all branches
+        
+        """
+        
         refs = self.repo.get_refs()
         branches = []
         for ref,branch_sha in refs.items():
@@ -308,6 +391,22 @@ class GittyupClient:
         return branches
 
     def checkout(self, paths=[], tree_sha=None, commit_sha=None):
+        """
+        Checkout a series of paths from a tree or commit.  If no tree or commit
+        information is given, it will check out the files from head.  If no
+        paths are given, all files will be checked out from head.
+        
+        @type   paths: list
+        @param  paths: A list of files to checkout
+        
+        @type   tree_sha: string
+        @param  tree_sha: The sha of a tree to checkout
+
+        @type   commit_sha: string
+        @param  commit_sha: The sha of a commit to checkout
+
+        """
+        
         tree = None
         if tree_sha:
             try:
@@ -339,6 +438,23 @@ class GittyupClient:
                 index[name] = (ctime, mtime, dev, ino, mode, uid, gid, size, blob.id, 0)
     
     def clone(self, host, path, bare=False, origin="origin"):
+        """
+        Clone a repository
+        
+        @type   host: string
+        @param  host: The url of the git repository
+        
+        @type   path: string
+        @param  path: The path to clone to
+        
+        @type   bare: boolean
+        @param  bare: Create a bare repository or not
+        
+        @type   origin: string
+        @param  origin: Specify the origin of the repository
+
+        """
+    
         self.initialize_repository(path, bare)
         self.remote_add(host, origin)
         refs = self.fetch(host)
@@ -369,6 +485,44 @@ class GittyupClient:
     def commit(self, message, parents=None, committer=None, commit_time=None, 
             commit_timezone=None, author=None, author_time=None, 
             author_timezone=None, encoding=None, commit_all=False):
+        """
+        Commit staged files to the local repository
+        
+        @type   message: string
+        @param  message: The log message
+        
+        @type   parents: list
+        @param  parents: A list of parent SHAs.  Defaults to head.
+        
+        @type   committer: string
+        @param  committer: The person committing.  Defaults to 
+            "user.name <user.email>"
+        
+        @type   commit_time: int
+        @param  commit_time: The commit time.  Defaults to time.time()
+        
+        @type   commit_timezone: int
+        @param  commit_timezone: The commit timezone.  
+            Defaults to (-1 * time.timezone)
+        
+        @type   author: string
+        @param  author: The author of the file changes.  Defaults to 
+            "user.name <user.email>"
+            
+        @type   author_time: int
+        @param  author_time: The author time.  Defaults to time.time()
+        
+        @type   author_timezone: int
+        @param  author_timezone: The author timezone.  
+            Defaults to (-1 * time.timezone)
+        
+        @type   encoding: string
+        @param  encoding: The encoding of the commit.  Defaults to UTF-8.
+        
+        @type   commit_all: boolean
+        @param  commit_all: Stage all changed files before committing
+        
+        """
 
         if commit_all:
             self.stage_all()
@@ -412,6 +566,14 @@ class GittyupClient:
         return commit.id
     
     def remove(self, paths):
+        """
+        Remove path from the repository.  Also deletes the local file.
+        
+        @type   paths: list
+        @param  paths: A list of paths to remove
+        
+        """
+        
         if isinstance(paths, str):
             paths = [paths]
 
@@ -426,6 +588,19 @@ class GittyupClient:
         index.write()        
     
     def move(self, source, dest):
+        """
+        Move a file within the repository
+        
+        @type   source: string
+        @param  source: The source file
+        
+        @type   dest: string
+        @param  dest: The destination.  If dest exists as a directory, source
+            will be added as a child.  Otherwise, source will be renamed to
+            dest.
+            
+        """
+        
         index = self._get_index()
         relative_source = self._get_relative_path(source)
         relative_dest = self._get_relative_path(dest)
@@ -454,6 +629,18 @@ class GittyupClient:
         shutil.move(source, dest)
 
     def pull(self, repository="origin", refspec="master"):
+        """
+        Fetch objects from a remote repository and merge with the local 
+            repository
+            
+        @type   repository: string
+        @param  repository: The name of the repository
+        
+        @type   refspec: string
+        @param  refspec: The branch name to pull from
+        
+        """
+        
         cmd = ["git", "pull", repository, refspec]
         try:
             (status, stdout, stderr) = GittyupCommand(cmd, cwd=self.repo.path).execute()
@@ -461,6 +648,18 @@ class GittyupClient:
             print e
     
     def push(self, repository="origin", refspec="master"):
+        """
+        Push objects from the local repository into the remote repository
+            and merge them.
+            
+        @type   repository: string
+        @param  repository: The name of the repository
+        
+        @type   refspec: string
+        @param  refspec: The branch name to pull from
+        
+        """
+
         cmd = ["git", "push", repository, refspec]
         try:
             (status, stdout, stderr) = GittyupCommand(cmd, cwd=self.repo.path).execute()
@@ -468,6 +667,15 @@ class GittyupClient:
             print e
 
     def fetch(self, host):
+        """
+        Fetch objects from a remote repository.  This will not merge the files
+            into the local working copy, use pull for that.
+        
+        @type   host: string
+        @param  host: The git url from which to fetch
+        
+        """
+        
         client, host_path = gittyup.util.get_transport_and_path(host)
 
         graphwalker = self.repo.get_graph_walker()
@@ -480,15 +688,42 @@ class GittyupClient:
         return refs
     
     def remote_add(self, host, origin="origin"):
+        """
+        Add a remote repository
+        
+        @type   host: string
+        @param  host: The git url to add
+        
+        @type   origin: string
+        @param  origin: The name to give to the remote repository
+        
+        """
+        
         self.config.set("remote \"%s\"" % origin, "fetch", "+refs/heads/*:refs/remotes/%s/*" % origin)
         self.config.set("remote \"%s\"" % origin, "url", host)
         self.config.write()
     
     def remote_delete(self, origin="origin"):
+        """
+        Remove a remote repository
+        
+        @type   origin: string
+        @param  origin: The name of the remote repository to remove
+
+        """
+        
         self.config.remove_section("remote \"%s\"" % origin)
         self.config.write()
     
     def remote_list(self):
+        """
+        Return a list of the remote repositories
+        
+        @rtype  list
+        @return A list of dicts with keys: remote, url, fetch
+            
+        """
+        
         ret = []
         for section, values in self.config.get_all():
             if section.startswith("remote"):
@@ -504,7 +739,34 @@ class GittyupClient:
     
     def tag(self, name, message, tagger=None, tag_time=None, tag_timezone=None,
             tag_object=None, track=False):
-            
+        """
+        Create a tag object
+        
+        @type   name: string
+        @param  name: The name to give the tag
+        
+        @type   message: string
+        @param  message: A log message
+        
+        @type   tagger: string
+        @param  tagger: The person tagging.  Defaults to 
+            "user.name <user.email>"
+        
+        @type   tag_time: int
+        @param  tag_time: The tag time.  Defaults to time.time()
+        
+        @type   tag_timezone: int
+        @param  tag_timezone: The tag timezone.  
+            Defaults to (-1 * time.timezone)
+        
+        @type   tag_object: string
+        @param  tag_object: The object to tag.  Defaults to HEAD
+        
+        @type   track: boolean
+        @param  track: Whether or not to track the tag
+        
+        """
+        
         tag = dulwich.objects.Tag()
         
         config_user = self._get_config_user()
@@ -534,12 +796,25 @@ class GittyupClient:
         return tag.id
     
     def tag_delete(self, name):
+        """
+        Delete a tag
+        
+        @type   name: string
+        @param  name: The name of the tag to delete
+        
+        """
+        
         ref_name = "refs/tags/%s" % name
         refs = self.repo.get_refs()
         if ref_name in refs:
             del self.repo.refs[ref_name]
     
     def tag_list(self):
+        """
+        Return a list of Tag objects
+        
+        """
+    
         refs = self.repo.get_refs()
         tags = []
         for ref,tag_sha in refs.items():
@@ -550,6 +825,12 @@ class GittyupClient:
         return tags
     
     def status(self):
+        """
+        Generates a list of GittyupStatus objects for all files in the 
+            repository.
+        
+        """
+    
         tree = self._get_tree_at_head()
         index = self._get_index()
         paths = self._read_directory_tree(self.repo.path)
@@ -596,6 +877,11 @@ class GittyupClient:
         return statuses
     
     def log(self):
+        """
+        Returns a revision history list
+        
+        """
+        
         try:
             return self.repo.revision_history(self.repo.head())
         except dulwich.errors.NotCommitError:

@@ -27,11 +27,10 @@ DULWICH_TREE_TYPE = 2
 DULWICH_BLOB_TYPE = 3
 DULWICH_TAG_TYPE = 4
 
-def notify(output):
-    print "Notify: ---%s---" % output
-
 class GittyupClient:
     def __init__(self, path=None, create=False):
+        self.callback_notify = None
+        
         if path:
             try:
                 self.repo = dulwich.repo.Repo(os.path.realpath(path))
@@ -133,6 +132,9 @@ class GittyupClient:
         fd.write(packed_refs_str)
         fd.close()
     
+    def _remove_from_index(self, index, key):
+        del index._byname[key]
+    
     #
     # Start Public Methods
     #
@@ -225,7 +227,7 @@ class GittyupClient:
                 self.stage(self._get_absolute_path(status.path))
 
             if status == MissingStatus:
-                del index[status.path]
+                self._remove_from_index(index, status.path)
                 index.write()           
 
     def unstage(self, paths):
@@ -251,7 +253,7 @@ class GittyupClient:
                     (mode, blob_id) = tree[relative_path]
                     index[relative_path] = (ctime, mtime, dev, ino, mode, uid, gid, size, blob_id, flags)
                 else:
-                    del index[relative_path]
+                    self._remove_from_index(index, relative_path)
             else:
                 if relative_path in tree:
                     index[relative_path] = (0, 0, 0, 0, tree[relative_path][0], 0, 0, 0, tree[relative_path][1], 0)
@@ -280,6 +282,7 @@ class GittyupClient:
         staged = []
         tree = self._get_tree_at_head()
         index = self._get_index()
+
         if len(tree) > 0:
             for item in index.changes_from_tree(self.repo.object_store, tree.id):
                 ((old_name, new_name), (old_mode, new_mode), (old_sha, new_sha)) = item
@@ -288,6 +291,9 @@ class GittyupClient:
                     staged.append(new_name)
                 if old_name and old_name != new_name:
                     staged.append(old_name)
+        else:
+            for path in index:
+                staged.append(path)
 
         return staged
 
@@ -585,7 +591,7 @@ class GittyupClient:
         for path in paths:
             relative_path = self._get_relative_path(path)
             if relative_path in index:
-                del index[relative_path]
+                self._remove_from_index(index, relative_path)
                 os.remove(path)
 
         index.write()        
@@ -624,7 +630,7 @@ class GittyupClient:
                 new_path = os.path.join(new_path, os.path.basename(source_file))
 
             index[new_path] = index[source_file]
-            del index[source_file]
+            self._remove_from_index(index, source_file)
 
         index.write()
         
@@ -895,3 +901,10 @@ class GittyupClient:
         except dulwich.errors.NotCommitError:
             raise NotCommitError()
             return None
+
+    def set_callback_notify(self, func):
+        self.callback_notify = func
+    
+    def notify(self, data):
+        if self.callback_notify is not None:
+            self.callback_notify(data)

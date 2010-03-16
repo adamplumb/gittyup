@@ -877,6 +877,11 @@ class GittyupClient:
         for path in paths:
             statuses.append(UntrackedStatus(path))
 
+        # Calculate which files are staged
+        staged_files = self.get_staged()
+        for index,st in enumerate(statuses):
+            statuses[index].is_staged = (st.path in staged_files)
+        
         return statuses
     
     def log(self):

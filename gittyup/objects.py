@@ -4,6 +4,7 @@
 
 class GittyupStatus:
     path = None
+    is_staged = False
     def __init__(self, path):
         self.path = path
 

@@ -291,7 +291,7 @@ class GittyupClient:
 
         return staged
 
-    def is_staged(self, path):
+    def is_staged(self, path, staged_files=None):
         """
         Determines if the specified path is staged
         
@@ -302,8 +302,11 @@ class GittyupClient:
         
         """
         
+        if not staged_files:
+            staged_files = self.get_staged()
+        
         relative_path = self._get_relative_path(path)
-        return (relative_path in self.get_staged())
+        return (relative_path in staged_files)
     
     def branch(self, name, commit_sha=None, track=False):
         """

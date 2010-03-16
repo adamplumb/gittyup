@@ -37,12 +37,14 @@ else:
     st = g.status()
     assert (st[0] == AddedStatus)
     assert (st[1] == AddedStatus)
+    assert (st[0].is_staged)
     
     # Unstage both files
     g.unstage([DIR+"/test1.txt", DIR+"/test2.txt"])
     st = g.status()
     assert (st[0] == UntrackedStatus)
     assert (st[1] == UntrackedStatus)
+    assert (not st[0].is_staged)
     
     # Untracked files should not be staged
     g.stage_all()

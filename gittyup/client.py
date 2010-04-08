@@ -82,15 +82,9 @@ class GittyupClient:
                 pass
 
             for filename in filenames:
-                paths.append(self._get_relative_path(os.path.join(root, filename)))
+                paths.append(self.get_relative_path(os.path.join(root, filename)))
         
         return sorted(paths)
-
-    def _get_relative_path(self, path):
-        return gittyup.util.relativepath(os.path.realpath(self.repo.path), path)      
-    
-    def _get_absolute_path(self, path):
-        return os.path.join(self.repo.path, path)      
 
     def _get_blob_from_file(self, path):
         file = open(path, "rb")
@@ -165,6 +159,9 @@ class GittyupClient:
         except dulwich.errors.NotGitRepository:
             raise NotRepositoryError()
 
+    def get_repository(self):
+        return self.repo.path
+
     def find_repository_path(self, path):
         path_to_check = os.path.realpath(path)
         while path_to_check != "/" and path_to_check != "":
@@ -174,6 +171,12 @@ class GittyupClient:
             path_to_check = os.path.split(path_to_check)[0]
         
         return None
+
+    def get_relative_path(self, path):
+        return gittyup.util.relativepath(os.path.realpath(self.repo.path), path)      
+    
+    def get_absolute_path(self, path):
+        return os.path.join(self.repo.path, path)
 
     def track(self, name):
         self.repo.refs["HEAD"] = "ref: %s" % name
@@ -200,8 +203,8 @@ class GittyupClient:
             paths = [paths]
 
         for path in paths:
-            relative_path = self._get_relative_path(path)
-            absolute_path = self._get_absolute_path(path)
+            relative_path = self.get_relative_path(path)
+            absolute_path = self.get_absolute_path(path)
             blob = self._get_blob_from_file(path)
             
             if relative_path in index:
@@ -224,7 +227,7 @@ class GittyupClient:
         index = self._get_index()
         for status in self.status():
             if status in [AddedStatus, RemovedStatus, ModifiedStatus]:
-                self.stage(self._get_absolute_path(status.path))
+                self.stage(self.get_absolute_path(status.path))
 
             if status == MissingStatus:
                 self._remove_from_index(index, status.path)
@@ -246,7 +249,7 @@ class GittyupClient:
             paths = [paths]
         
         for path in paths:
-            relative_path = self._get_relative_path(path)
+            relative_path = self.get_relative_path(path)
             if relative_path in index:
                 if relative_path in tree:
                     (ctime, mtime, dev, ino, mode, uid, gid, size, blob_id, flags) = index[relative_path]
@@ -271,7 +274,7 @@ class GittyupClient:
         
         index = self._get_index()
         for status in self.status():
-            self.unstage(self._get_absolute_path(status.path))
+            self.unstage(self.get_absolute_path(status.path))
     
     def get_staged(self):
         """
@@ -311,7 +314,7 @@ class GittyupClient:
         if not staged_files:
             staged_files = self.get_staged()
         
-        relative_path = self._get_relative_path(path)
+        relative_path = self.get_relative_path(path)
         return (relative_path in staged_files)
     
     def branch(self, name, commit_sha=None, track=False):
@@ -434,13 +437,13 @@ class GittyupClient:
 
         relative_paths = []
         for path in paths:
-            relative_paths = self._get_relative_path(path)
+            relative_paths = self.get_relative_path(path)
 
         index = self._get_index()
         for (name, mode, sha) in self.repo.object_store.iter_tree_contents(tree.id):
             if name in relative_paths or len(paths) == 0:
                 blob = self.repo.get_blob(sha)
-                absolute_path = self._get_absolute_path(name)
+                absolute_path = self.get_absolute_path(name)
                 self._write_blob_to_file(absolute_path, blob)                
 
                 (mode, ino, dev, nlink, uid, gid, size, atime, mtime, ctime) = os.stat(absolute_path)
@@ -589,7 +592,7 @@ class GittyupClient:
         index = self._get_index()
         
         for path in paths:
-            relative_path = self._get_relative_path(path)
+            relative_path = self.get_relative_path(path)
             if relative_path in index:
                 self._remove_from_index(index, relative_path)
                 os.remove(path)
@@ -611,8 +614,8 @@ class GittyupClient:
         """
         
         index = self._get_index()
-        relative_source = self._get_relative_path(source)
-        relative_dest = self._get_relative_path(dest)
+        relative_source = self.get_relative_path(source)
+        relative_dest = self.get_relative_path(dest)
 
         # Get a list of affected files so we can update the index
         source_files = []
@@ -621,7 +624,7 @@ class GittyupClient:
                 if name.startswith(relative_source):
                     source_files.append(name)
         else:
-            source_files.append(self._get_relative_path(source))
+            source_files.append(self.get_relative_path(source))
 
         # Rename the affected index entries
         for source_file in source_files:
@@ -833,7 +836,7 @@ class GittyupClient:
         
         return tags
     
-    def status(self):
+    def status(self, path=None):
         """
         Generates a list of GittyupStatus objects for all files in the 
             repository.
@@ -849,7 +852,7 @@ class GittyupClient:
         if len(tree) > 0:
             for (name, mode, sha) in self.repo.object_store.iter_tree_contents(tree.id):
                 if name in tracked_paths:
-                    absolute_path = self._get_absolute_path(name)
+                    absolute_path = self.get_absolute_path(name)
                     if os.path.exists(absolute_path):
                         # Cached, determine if modified or not                        
                         blob = self._get_blob_from_file(absolute_path)
@@ -880,15 +883,33 @@ class GittyupClient:
                 pass
 
         # Find untrackedfiles
-        for path in paths:
-            statuses.append(UntrackedStatus(path))
+        for p in paths:
+            statuses.append(UntrackedStatus(p))
+
+        # If path is specified as a parameter, narrow the list down
+        final_statuses = []
+        if path:
+            relative_path = self.get_relative_path(path)
+            if os.path.isdir(path):
+                for st in statuses:
+                    if st.path.startswith(relative_path) or relative_path == "":
+                        final_statuses.append(status)
+            elif os.path.isfile(path):
+                for st in statuses:
+                    if st.path == relative_path:
+                        final_statuses.append(st)
+                        break
+        else:
+            final_statuses = statuses
+
+        del statuses
 
         # Calculate which files are staged
         staged_files = self.get_staged()
-        for index,st in enumerate(statuses):
-            statuses[index].is_staged = (st.path in staged_files)
+        for index,st in enumerate(final_statuses):
+            final_statuses[index].is_staged = (st.path in staged_files)
         
-        return statuses
+        return final_statuses
     
     def log(self):
         """

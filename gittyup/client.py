@@ -74,17 +74,27 @@ class GittyupClient:
         return self.repo.tree(commit_index(self.repo.object_store, self._get_index()))
     
     def _read_directory_tree(self, path):
-        paths = []
+        files = []
+        directories = []
         for root, dirs, filenames in os.walk(path, topdown=True):
             try:
                 dirs.remove(".git")
             except ValueError:
                 pass
 
+            if root == self.repo.path:
+                rel_root = ""
+            else:
+                rel_root = self.get_relative_path(root)
+
             for filename in filenames:
-                paths.append(self.get_relative_path(os.path.join(root, filename)))
+                files.append(os.path.join(rel_root, filename))
         
-        return sorted(paths)
+            for _d in dirs:
+                directories.append(os.path.join(rel_root, _d))
+        
+        directories.append("")
+        return (sorted(files), directories)
 
     def _get_blob_from_file(self, path):
         file = open(path, "rb")
@@ -176,7 +186,7 @@ class GittyupClient:
         return gittyup.util.relativepath(os.path.realpath(self.repo.path), path)      
     
     def get_absolute_path(self, path):
-        return os.path.join(self.repo.path, path)
+        return os.path.join(self.repo.path, path).rstrip("/")
 
     def track(self, name):
         self.repo.refs["HEAD"] = "ref: %s" % name
@@ -845,8 +855,8 @@ class GittyupClient:
     
         tree = self._get_tree_at_head()
         index = self._get_index()
-        paths = self._read_directory_tree(self.repo.path)
-        
+        (files, directories) = self._read_directory_tree(self.repo.path)
+
         statuses = []
         tracked_paths = set(index)
         if len(tree) > 0:
@@ -870,7 +880,7 @@ class GittyupClient:
                     statuses.append(RemovedStatus(name))
 
                 try:
-                    paths.remove(name)
+                    files.remove(name)
                 except ValueError:
                     pass
 
@@ -878,22 +888,22 @@ class GittyupClient:
             # Added
             statuses.append(AddedStatus(name))
             try:
-                paths.remove(name)
+                files.remove(name)
             except ValueError:
                 pass
 
-        # Find untrackedfiles
-        for p in paths:
-            statuses.append(UntrackedStatus(p))
+        # Find untracked files
+        for f in files:
+            statuses.append(UntrackedStatus(f))
 
         # If path is specified as a parameter, narrow the list down
         final_statuses = []
-        if path:
+        if path and self.get_absolute_path(path) != self.repo.path:
             relative_path = self.get_relative_path(path)
             if os.path.isdir(path):
                 for st in statuses:
                     if st.path.startswith(relative_path) or relative_path == "":
-                        final_statuses.append(status)
+                        final_statuses.append(st)
             elif os.path.isfile(path):
                 for st in statuses:
                     if st.path == relative_path:
@@ -904,11 +914,23 @@ class GittyupClient:
 
         del statuses
 
+        # Determine status of folders based on child contents
+        for d in directories:
+            d_status = NormalStatus(d)
+            for st in final_statuses:
+                if os.path.join(d, os.path.basename(st.path)) == st.path:
+
+                    if st.identifier != "normal" and st.identifier != "untracked":
+                        d_status = ModifiedStatus(d)
+            
+
+            final_statuses.append(d_status)
+
         # Calculate which files are staged
         staged_files = self.get_staged()
         for index,st in enumerate(final_statuses):
             final_statuses[index].is_staged = (st.path in staged_files)
-        
+
         return final_statuses
     
     def log(self):

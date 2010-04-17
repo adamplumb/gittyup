@@ -846,12 +846,15 @@ class GittyupClient:
         
         return tags
     
-    def status(self, path=None):
+    def status(self, paths_to_return=None):
         """
         Generates a list of GittyupStatus objects for all files in the 
             repository.
         
         """
+
+        if isinstance(paths_to_return, str):
+            paths_to_return = [paths_to_return]
     
         tree = self._get_tree_at_head()
         index = self._get_index()
@@ -898,19 +901,21 @@ class GittyupClient:
 
         # If path is specified as a parameter, narrow the list down
         final_statuses = []
-        if path and self.get_absolute_path(path) != self.repo.path:
-            relative_path = self.get_relative_path(path)
-            if os.path.isdir(path):
-                for st in statuses:
-                    if st.path.startswith(relative_path) or relative_path == "":
-                        final_statuses.append(st)
-            elif os.path.isfile(path):
-                for st in statuses:
-                    if st.path == relative_path:
-                        final_statuses.append(st)
-                        break
-        else:
-            final_statuses = statuses
+        for path_to_return in paths_to_return:
+            if path_to_return and self.get_absolute_path(path_to_return) != self.repo.path:
+                relative_path = self.get_relative_path(path_to_return)
+                if os.path.isdir(path_to_return):
+                    for st in statuses:
+                        if st.path.startswith(relative_path) or relative_path == "":
+                            final_statuses.append(st)
+                elif os.path.isfile(path_to_return):
+                    for st in statuses:
+                        if st.path == relative_path:
+                            final_statuses.append(st)
+                            break
+            else:
+                final_statuses = statuses
+                break
 
         del statuses
 

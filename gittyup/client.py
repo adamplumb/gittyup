@@ -64,7 +64,7 @@ class GittyupClient:
     
     def _get_tree_at_head(self):
         try:
-            tree = self.repo[self.repo[self.repo.head()].tree]
+            tree = self.repo.tree(self.repo.commit(self.repo.head()).tree)
         except KeyError, e:
             tree = dulwich.objects.Tree()
 
@@ -209,7 +209,7 @@ class GittyupClient:
         tree = self._get_tree_at_head()
         index = self._get_index()
         
-        if isinstance(paths, str):
+        if type(paths) in (str, unicode):
             paths = [paths]
 
         for path in paths:
@@ -255,7 +255,7 @@ class GittyupClient:
         index = self._get_index()
         tree = self._get_tree_at_head()
 
-        if isinstance(paths, str):
+        if type(paths) in (str, unicode):
             paths = [paths]
         
         for path in paths:
@@ -596,7 +596,7 @@ class GittyupClient:
         
         """
         
-        if isinstance(paths, str):
+        if type(paths) in (str, unicode):
             paths = [paths]
 
         index = self._get_index()
@@ -846,14 +846,14 @@ class GittyupClient:
         
         return tags
     
-    def status(self, paths_to_return=None):
+    def status(self, paths_to_return=[]):
         """
         Generates a list of GittyupStatus objects for all files in the 
             repository.
         
         """
 
-        if isinstance(paths_to_return, str):
+        if type(paths_to_return) in (str, unicode):
             paths_to_return = [paths_to_return]
     
         tree = self._get_tree_at_head()

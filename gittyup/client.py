@@ -5,6 +5,7 @@
 import os
 import re
 import shutil
+import fnmatch
 from time import time, timezone
 
 import dulwich.errors
@@ -30,14 +31,17 @@ DULWICH_TAG_TYPE = 4
 class GittyupClient:
     def __init__(self, path=None, create=False):
         self.callback_notify = None
+        self.global_ignore_patterns = []
         
         if path:
             try:
                 self.repo = dulwich.repo.Repo(os.path.realpath(path))
                 self._load_config()
+                self.global_ignore_patterns = self._get_global_ignore_patterns()
             except dulwich.errors.NotGitRepository:
                 if create:
                     self.initialize_repository(path)
+                    self.global_ignore_patterns = self._get_global_ignore_patterns()
                 else:
                     raise NotRepositoryError()
         else:
@@ -72,8 +76,65 @@ class GittyupClient:
 
     def _get_working_tree(self):
         return self.repo.tree(commit_index(self.repo.object_store, self._get_index()))
+
+    def _get_global_ignore_patterns(self):
+        """
+        Get ignore patterns from $GIT_DIR/info/exclude then from
+        core.excludesfile in gitconfig.
+        
+        """
+        
+        patterns = []
+        try:
+            git_dir = os.environ["GIT_DIR"]
+        except KeyError:
+            git_dir = self.repo.path
+
+        excludefile = os.path.join(git_dir, "info", "exclude")
+        if os.path.isfile(excludefile):
+            patterns += self._get_ignore_patterns_from_file(excludefile)
+
+        try:
+            core_excludesfile = self.config.get("core", "excludesfile")
+            if core_excludesfile:
+                patterns += self._get_ignore_patterns_from_file(core_excludesfile)
+        except KeyError:
+            pass
+
+        return patterns
     
-    def _read_directory_tree(self, path):
+    def _get_ignore_patterns_from_file(self, path):
+        """
+        Read in an ignore patterns file (i.e. .gitignore, $GIT_DIR/info/exclude)
+        and return a list of patterns
+        """
+        
+        patterns = []
+        if os.path.isfile(path):
+            file = open(path, "r")
+            try:
+                for line in file:
+                    if line == "" or line.startswith("#"):
+                        continue
+
+                    patterns.append(line.rstrip("\n"))
+            finally:
+                file.close()
+        
+        return patterns
+
+    def _ignore_file(self, patterns, filename):
+        """
+        Determine whether the given file should be ignored
+
+        """
+        for pattern in patterns:
+            if fnmatch.fnmatch(filename, pattern) and not pattern.startswith("!"):
+                return True
+
+        return False
+    
+    def _read_directory_tree(self, path, show_ignored_files=False):
         files = []
         directories = []
         for root, dirs, filenames in os.walk(path, topdown=True):
@@ -87,11 +148,19 @@ class GittyupClient:
             else:
                 rel_root = self.get_relative_path(root)
 
+            # Generate a list of appropriate ignore patterns
+            patterns = []
+            if not show_ignored_files:
+                patterns = self.global_ignore_patterns
+                patterns += self._get_ignore_patterns_from_file(os.path.join(rel_root, ".gitignore"))
+
             for filename in filenames:
-                files.append(os.path.join(rel_root, filename))
+                if not self._ignore_file(patterns, filename):
+                    files.append(os.path.join(rel_root, filename))
         
             for _d in dirs:
-                directories.append(os.path.join(rel_root, _d))
+                if not self._ignore_file(patterns, _d):
+                    directories.append(os.path.join(rel_root, _d))
         
         directories.append("")
         return (sorted(files), directories)
@@ -154,6 +223,7 @@ class GittyupClient:
             self.repo = dulwich.repo.Repo.init(real_path)
             
         self._load_config()
+        self.global_ignore_patterns = self._get_global_ignore_patterns()
 
         self.config.set_section("core", {
             "logallrefupdates": "true",

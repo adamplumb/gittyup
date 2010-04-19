@@ -942,18 +942,21 @@ class GittyupClient:
         if len(tree) > 0:
             for (name, mode, sha) in self.repo.object_store.iter_tree_contents(tree.id):
                 if name in tracked_paths:
-                    absolute_path = self.get_absolute_path(name)
-                    if os.path.exists(absolute_path):
-                        # Cached, determine if modified or not                        
-                        blob = self._get_blob_from_file(absolute_path)
-                        if blob.id == index[name][8]:
-                            statuses.append(NormalStatus(name))
+                    if name in tree:
+                        absolute_path = self.get_absolute_path(name)
+                        if os.path.exists(absolute_path):
+                            # Cached, determine if modified or not                        
+                            blob = self._get_blob_from_file(absolute_path)
+                            if blob.id == tree[name][1]:
+                                statuses.append(NormalStatus(name))
+                            else:
+                                statuses.append(ModifiedStatus(name))
                         else:
-                            statuses.append(ModifiedStatus(name))
+                            # Missing
+                            statuses.append(MissingStatus(name))
                     else:
-                        # Missing
-                        statuses.append(MissingStatus(name))
-                    
+                        statuses.append(AddedStatus(name))
+                        
                     tracked_paths.remove(name)
                 else:
                     # Removed

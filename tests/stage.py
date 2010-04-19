@@ -56,8 +56,11 @@ else:
     g.stage([DIR+"/test1.txt"])
     g.commit("Test commit")
     change(DIR+"/test1.txt")
+    st = g.status()
+    assert (st[0] == ModifiedStatus)
     g.stage_all()
     st = g.status()
+    assert (st[0] == ModifiedStatus)
     assert (g.is_staged(DIR+"/" + st[0].path))
     assert (not g.is_staged(DIR+"/" + st[1].path))
 

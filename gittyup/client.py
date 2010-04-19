@@ -28,9 +28,12 @@ DULWICH_TREE_TYPE = 2
 DULWICH_BLOB_TYPE = 3
 DULWICH_TAG_TYPE = 4
 
+def callback_notify_null(val):
+    pass
+
 class GittyupClient:
     def __init__(self, path=None, create=False):
-        self.callback_notify = None
+        self.callback_notify = callback_notify_null
         self.global_ignore_patterns = []
         
         if path:
@@ -307,7 +310,9 @@ class GittyupClient:
         index = self._get_index()
         for status in self.status():
             if status in [AddedStatus, RemovedStatus, ModifiedStatus]:
-                self.stage(self.get_absolute_path(status.path))
+                abs_path = self.get_absolute_path(status.path)
+                if os.path.isfile(abs_path):
+                    self.stage(abs_path)
 
             if status == MissingStatus:
                 self._remove_from_index(index, status.path)
@@ -354,7 +359,9 @@ class GittyupClient:
         
         index = self._get_index()
         for status in self.status():
-            self.unstage(self.get_absolute_path(status.path))
+            abs_path = self.get_absolute_path(status.path)
+            if os.path.isfile(abs_path):
+                self.unstage(abs_path)
     
     def get_staged(self):
         """
@@ -773,7 +780,7 @@ class GittyupClient:
         graphwalker = self.repo.get_graph_walker()
         f, commit = self.repo.object_store.add_pack()
         refs = client.fetch_pack(host_path, self.repo.object_store.determine_wants_all, 
-                          graphwalker, f.write, notify)
+                          graphwalker, f.write, self.callback_notify)
 
         commit()
         
@@ -971,22 +978,25 @@ class GittyupClient:
 
         # If path is specified as a parameter, narrow the list down
         final_statuses = []
-        for path_to_return in paths_to_return:
-            if path_to_return and self.get_absolute_path(path_to_return) != self.repo.path:
-                relative_path = self.get_relative_path(path_to_return)
-                if os.path.isdir(path_to_return):
-                    for st in statuses:
-                        if st.path.startswith(relative_path) or relative_path == "":
-                            final_statuses.append(st)
-                elif os.path.isfile(path_to_return):
-                    for st in statuses:
-                        if st.path == relative_path:
-                            final_statuses.append(st)
-                            break
-            else:
-                final_statuses = statuses
-                break
-
+        if len(paths_to_return) > 0:
+            for path_to_return in paths_to_return:
+                if path_to_return and self.get_absolute_path(path_to_return) != self.repo.path:
+                    relative_path = self.get_relative_path(path_to_return)
+                    if os.path.isdir(path_to_return):
+                        for st in statuses:
+                            if st.path.startswith(relative_path) or relative_path == "":
+                                final_statuses.append(st)
+                    elif os.path.isfile(path_to_return):
+                        for st in statuses:
+                            if st.path == relative_path:
+                                final_statuses.append(st)
+                                break
+                else:
+                    final_statuses = statuses
+                    break
+        else:
+            final_statuses = statuses
+            
         del statuses
 
         # Determine status of folders based on child contents

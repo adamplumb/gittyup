@@ -281,7 +281,7 @@ class GittyupClient:
 
         tree = self._get_tree_at_head()
         index = self._get_index()
-        
+
         if type(paths) in (str, unicode):
             paths = [paths]
 
@@ -293,8 +293,10 @@ class GittyupClient:
             if relative_path in index:
                 (ctime, mtime, dev, ino, mode, uid, gid, size, blob_id, flags) = index[relative_path]
             else:
-                (mode, ino, dev, nlink, uid, gid, size, atime, mtime, ctime) = os.stat(path)
                 flags = 0
+
+            # make sure mtime and ctime is updated every time a file is staged
+            (mode, ino, dev, nlink, uid, gid, size, atime, mtime, ctime) = os.stat(path)
 
             index[relative_path] = (ctime, mtime, dev, ino, mode, uid, gid, size, blob.id, flags)
             index.write()
@@ -332,13 +334,27 @@ class GittyupClient:
 
         if type(paths) in (str, unicode):
             paths = [paths]
-        
+
         for path in paths:
             relative_path = self.get_relative_path(path)
             if relative_path in index:
                 if relative_path in tree:
                     (ctime, mtime, dev, ino, mode, uid, gid, size, blob_id, flags) = index[relative_path]
                     (mode, blob_id) = tree[relative_path]
+                    
+                    # If the file is locally modified, set these vars to 0
+                    # I'm not sure yet why this needs to happen, but it does
+                    # in order for the file to appear modified and not normal
+                    blob = self._get_blob_from_file(path)
+                    if blob.id != blob_id:
+                        ctime = 0
+                        mtime = 0
+                        dev = 0
+                        ino = 0
+                        uid = 0
+                        gid = 0
+                        size = 0
+                    
                     index[relative_path] = (ctime, mtime, dev, ino, mode, uid, gid, size, blob_id, flags)
                 else:
                     self._remove_from_index(index, relative_path)
@@ -347,7 +363,7 @@ class GittyupClient:
                     index[relative_path] = (0, 0, 0, 0, tree[relative_path][0], 0, 0, 0, tree[relative_path][1], 0)
 
         index.write()
-    
+            
     def unstage_all(self):
         """
         Unstage all files so they are not committed or tracked

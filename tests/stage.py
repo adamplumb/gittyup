@@ -69,5 +69,7 @@ else:
     st = g.status()
     assert (not g.is_staged(DIR+"/" + st[0].path))
     assert (not g.is_staged(DIR+"/" + st[1].path))
+    assert (st[0] == ModifiedStatus)
+    assert (st[1] == UntrackedStatus)
     
     print "stage.py pass"

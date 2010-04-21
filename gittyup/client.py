@@ -163,8 +163,6 @@ class GittyupClient:
                 path_to_check = root
                 while path_to_check != self.repo.path:
                     patterns += self._get_ignore_patterns_from_file(os.path.join(path_to_check, ".gitignore"))
-                    if path_to_check == self.repo.path:
-                        break
                     path_to_check = os.path.split(path_to_check)[0]
                 
                 patterns += self._get_ignore_patterns_from_file(os.path.join(root, ".gitignore"))

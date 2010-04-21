@@ -200,7 +200,7 @@ class GittyupClient:
     
         file = open(path, "wb")
         try:
-            file.write(blob.get_data())
+            file.write(blob.data)
         finally:
             file.close()
 
@@ -564,7 +564,7 @@ class GittyupClient:
         index = self._get_index()
         for (name, mode, sha) in self.repo.object_store.iter_tree_contents(tree.id):
             if name in relative_paths or len(paths) == 0:
-                blob = self.repo.get_blob(sha)
+                blob = self.repo[sha]
                 absolute_path = self.get_absolute_path(name)
                 self._write_blob_to_file(absolute_path, blob)                
 

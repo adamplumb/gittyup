@@ -89,13 +89,6 @@ class GittyupClient:
             tree_index[item[0]] = (item[1], item[2])
         return tree_index
 
-    def _repo_contains(self, sha):
-        try:
-            tmp = self.repo[sha]
-            return True
-        except KeyError:
-            return False
-
     def _get_global_ignore_patterns(self):
         """
         Get ignore patterns from $GIT_DIR/info/exclude then from

@@ -155,17 +155,26 @@ class GittyupClient:
             except ValueError:
                 pass
 
-            if root == self.repo.path:
-                rel_root = ""
-            else:
-                rel_root = self.get_relative_path(root)
-
             # Generate a list of appropriate ignore patterns
             patterns = []
             if not show_ignored_files:
                 patterns = self.global_ignore_patterns
-                patterns += self._get_ignore_patterns_from_file(os.path.join(rel_root, ".gitignore"))
 
+                path_to_check = root
+                while path_to_check != self.repo.path:
+                    patterns += self._get_ignore_patterns_from_file(os.path.join(path_to_check, ".gitignore"))
+                    if path_to_check == self.repo.path:
+                        break
+                    path_to_check = os.path.split(path_to_check)[0]
+                
+                patterns += self._get_ignore_patterns_from_file(os.path.join(root, ".gitignore"))
+
+            # Find the relative root path of this folder
+            if root == self.repo.path:
+                rel_root = ""
+            else:
+                rel_root = self.get_relative_path(root)
+                
             for filename in filenames:
                 if not self._ignore_file(patterns, filename):
                     files.append(os.path.join(rel_root, filename))

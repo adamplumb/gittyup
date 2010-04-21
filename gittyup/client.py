@@ -80,6 +80,22 @@ class GittyupClient:
     def _get_working_tree(self):
         return self.repo.tree(commit_index(self.repo.object_store, self._get_index()))
 
+    def _get_tree_index(self, tree=None):
+        if tree is None:
+            tree = self._get_tree_at_head()
+
+        tree_index = {}
+        for item in self.repo.object_store.iter_tree_contents(tree.id):
+            tree_index[item[0]] = (item[1], item[2])
+        return tree_index
+
+    def _repo_contains(self, sha):
+        try:
+            tmp = self.repo[sha]
+            return True
+        except KeyError:
+            return False
+
     def _get_global_ignore_patterns(self):
         """
         Get ignore patterns from $GIT_DIR/info/exclude then from
@@ -262,13 +278,17 @@ class GittyupClient:
         return os.path.join(self.repo.path, path).rstrip("/")
 
     def track(self, name):
-        self.repo.refs["HEAD"] = "ref: %s" % name
+        self.repo.refs["HEAD"] = self.repo.refs[name]
 
     def is_tracking(self, name):
-        return (self.repo.refs["HEAD"] == "ref: %s" % name)
+        return (self.repo.refs["HEAD"] == self.repo.refs[name])
 
     def tracking(self):
-        return self.repo.refs["HEAD"][5:]
+        for key,val in self.repo.refs.items():
+            if key != "HEAD" and val == self.repo.refs["HEAD"]:
+                return (key, val)
+        
+        return ("HEAD", self.repo.refs["HEAD"])
     
     def stage(self, paths):
         """
@@ -279,7 +299,6 @@ class GittyupClient:
         
         """
 
-        tree = self._get_tree_at_head()
         index = self._get_index()
 
         if type(paths) in (str, unicode):
@@ -330,7 +349,7 @@ class GittyupClient:
         """
         
         index = self._get_index()
-        tree = self._get_tree_at_head()
+        tree = self._get_tree_index()
 
         if type(paths) in (str, unicode):
             paths = [paths]
@@ -673,11 +692,11 @@ class GittyupClient:
         
         self.repo.object_store.add_object(commit)
         
-        self.repo.refs[self.tracking()] = commit.id
+        self.repo.refs["HEAD"] = commit.id
         
         if initial_commit:
             self.track("refs/heads/master")
-
+            
         return commit.id
     
     def remove(self, paths):
@@ -950,20 +969,21 @@ class GittyupClient:
             paths_to_return = [paths_to_return]
     
         tree = self._get_tree_at_head()
+        tree_index = self._get_tree_index(tree)
         index = self._get_index()
         (files, directories) = self._read_directory_tree(self.repo.path)
 
         statuses = []
         tracked_paths = set(index)
-        if len(tree) > 0:
+        if len(tree_index) > 0:
             for (name, mode, sha) in self.repo.object_store.iter_tree_contents(tree.id):
                 if name in tracked_paths:
-                    if name in tree:
+                    if name in tree_index:
                         absolute_path = self.get_absolute_path(name)
                         if os.path.exists(absolute_path):
                             # Cached, determine if modified or not                        
                             blob = self._get_blob_from_file(absolute_path)
-                            if blob.id == tree[name][1]:
+                            if blob.id == tree_index[name][1]:
                                 statuses.append(NormalStatus(name))
                             else:
                                 statuses.append(ModifiedStatus(name))

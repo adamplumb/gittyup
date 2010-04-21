@@ -284,11 +284,7 @@ class GittyupClient:
         return (self.repo.refs["HEAD"] == self.repo.refs[name])
 
     def tracking(self):
-        for key,val in self.repo.refs.items():
-            if key != "HEAD" and val == self.repo.refs["HEAD"]:
-                return (key, val)
-        
-        return ("HEAD", self.repo.refs["HEAD"])
+        return self.repo.refs.read_ref("HEAD")[5:]
     
     def stage(self, paths):
         """

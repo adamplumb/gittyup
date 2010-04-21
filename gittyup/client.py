@@ -71,7 +71,7 @@ class GittyupClient:
     
     def _get_tree_at_head(self):
         try:
-            tree = self.repo.tree(self.repo.commit(self.repo.head()).tree)
+            tree = self.repo[self.repo[self.repo.head()].tree]
         except KeyError, e:
             tree = dulwich.objects.Tree()
 

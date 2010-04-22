@@ -78,7 +78,7 @@ class GittyupClient:
         return tree
 
     def _get_working_tree(self):
-        return self.repo.tree(commit_index(self.repo.object_store, self._get_index()))
+        return self.repo[commit_index(self.repo.object_store, self._get_index())]
 
     def _get_tree_index(self, tree=None):
         if tree is None:
@@ -453,11 +453,11 @@ class GittyupClient:
 
         if commit_sha:
             try:
-                commit = self.repo.commit(commit_sha)
+                commit = self.repo[commit_sha]
             except AssertionError:
                 raise NotCommitError(commit_sha)
         else:
-            commit = self.repo.commit(self.repo.head())
+            commit = self.repo[self.repo.head()]
 
         self.repo.refs["refs/heads/%s" % name] = commit.id
         
@@ -540,12 +540,12 @@ class GittyupClient:
         tree = None
         if tree_sha:
             try:
-                tree = self.repo.tree(tree_sha)
+                tree = self.repo[tree_sha]
             except AssertionError:
                 raise NotTreeError(tree_sha)
         elif commit_sha:
             try:
-                commit = self.repo.commit(commit_sha)
+                commit = self.repo[commit_sha]
                 tree = commit.tree
             except AssertionError:
                 raise NotCommitError(commit_sha)
@@ -585,32 +585,17 @@ class GittyupClient:
 
         """
     
-        self.initialize_repository(path, bare)
-        self.remote_add(host, origin)
-        refs = self.fetch(host)
-
-        if bare: return
-
-        # Checkout the cloned repository into the local repository
-        obj = self.repo.commit(refs["HEAD"])
-        self.checkout(tree_sha=obj.tree)
-
-        # Set up refs so the local repository can track the remote repository
-        ref_key = "refs/remotes/%s/master" % origin
-        self._write_packed_refs({
-            ref_key: refs["refs/heads/master"]
-        })
-        self.repo.refs["HEAD"] = refs["HEAD"]
-        self.repo.refs["refs/heads/master"] = refs["refs/heads/master"]
-        self.repo.refs[ref_key] = refs["HEAD"]
-
-        # Set config information
-
-        self.config.set_section('branch "master"', {
-            "remote": origin,
-            "merge": "refs/heads/master"
-        })
-        self.config.write()   
+        more = ["-o", "origin"]
+        if bare:
+            more.append("--bare")
+    
+        base_dir = os.path.split(path)[0]
+    
+        cmd = ["git", "clone", host, path] + more
+        try:
+            (status, stdout, stderr) = GittyupCommand(cmd, cwd=base_dir).execute()
+        except GittyupCommandError, e:
+            print e
     
     def commit(self, message, parents=None, committer=None, commit_time=None, 
             commit_timezone=None, author=None, author_time=None, 

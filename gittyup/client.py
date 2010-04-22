@@ -85,8 +85,9 @@ class GittyupClient:
             tree = self._get_tree_at_head()
 
         tree_index = {}
-        for item in self.repo.object_store.iter_tree_contents(tree.id):
-            tree_index[item[0]] = (item[1], item[2])
+        if tree:
+            for item in self.repo.object_store.iter_tree_contents(tree.id):
+                tree_index[item[0]] = (item[1], item[2])
         return tree_index
 
     def _get_global_ignore_patterns(self):

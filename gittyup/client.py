@@ -593,7 +593,7 @@ class GittyupClient:
     
         cmd = ["git", "clone", host, path] + more
         try:
-            (status, stdout, stderr) = GittyupCommand(cmd, cwd=base_dir).execute()
+            (status, stdout, stderr) = GittyupCommand(cmd, cwd=base_dir, notify=self.callback_notify).execute()
         except GittyupCommandError, e:
             print e
     

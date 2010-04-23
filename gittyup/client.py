@@ -759,7 +759,7 @@ class GittyupClient:
         
         cmd = ["git", "pull", repository, refspec]
         try:
-            (status, stdout, stderr) = GittyupCommand(cmd, cwd=self.repo.path).execute()
+            (status, stdout, stderr) = GittyupCommand(cmd, cwd=self.repo.path, notify=self.callback_notify).execute()
         except GittyupCommandError, e:
             print e
     
@@ -778,7 +778,7 @@ class GittyupClient:
 
         cmd = ["git", "push", repository, refspec]
         try:
-            (status, stdout, stderr) = GittyupCommand(cmd, cwd=self.repo.path).execute()
+            (status, stdout, stderr) = GittyupCommand(cmd, cwd=self.repo.path, notify=self.callback_notify).execute()
         except GittyupCommandError, e:
             print e
 
@@ -1039,14 +1039,25 @@ class GittyupClient:
 
         return final_statuses
     
-    def log(self):
+    def log(self, refspec="HEAD", limit=None):
         """
         Returns a revision history list
         
         """
         
+        sha = self.repo.refs[refspec]
+        
         try:
-            return self.repo.revision_history(self.repo.head())
+            history = self.repo.revision_history(sha)
+            commits = []
+            for item in history:
+                commits.append(Commit(item.id, item))
+
+            if limit:
+                return commits[0:limit-1]
+            else:
+                return commits
+
         except dulwich.errors.NotCommitError:
             raise NotCommitError()
             return None

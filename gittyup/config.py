@@ -31,11 +31,14 @@ class GittyupConfig:
     def set(self, section, key, value):
         if section not in self._config:
             self._config[section] = {}
-            
+        
         self._config[section][key] = value
     
     def get(self, section, key):
-        return self._config[section][key]
+        try:
+            return self._config[section][key]
+        except KeyError:
+            return u""
 
     def has(self, section, key=None):
         if section in self._config:

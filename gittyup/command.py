@@ -21,6 +21,11 @@ class GittyupCommand:
         if not self.cwd:
             self.cwd = os.getcwd()
     
+    def callback_stack(self, val):
+        lines = val.rstrip("\n").split("\n")
+        for line in lines:
+            self.notify(line)
+    
     def execute(self):
         proc = subprocess.Popen(self.command, 
                                 cwd=self.cwd,
@@ -30,8 +35,9 @@ class GittyupCommand:
         
         try:
             stdout_value = proc.stdout.read()
-            self.notify(stdout_value)
             stderr_value = proc.stderr.read()
+            self.callback_stack(stderr_value)
+            self.callback_stack(stdout_value)
             status = proc.wait()
         finally:
             proc.stdout.close()
